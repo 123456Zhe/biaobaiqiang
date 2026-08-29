@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { checkText } from "@/lib/dfa";
+import { moderateText } from "@/lib/ai-moderation";
 import { allow } from "@/lib/ratelimit";
 import { seedSensitiveWords } from "@/lib/seed";
 import { createNotification, truncate } from "@/lib/notifications";
@@ -109,6 +110,15 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  const ai = await moderateText(content);
+  if (ai.verdict === "rejected") {
+    return Response.json(
+      { error: "内容未通过审核", reason: ai.reason },
+      { status: 400 },
+    );
+  }
+  const status = ai.verdict === "approved" && files.length === 0 ? "approved" : "pending";
+
   const imageUrls: string[] = [];
   for (const file of files) {
     try {
@@ -127,9 +137,11 @@ export async function POST(request: NextRequest) {
       author,
       target,
       images: JSON.stringify(imageUrls),
-      status: "pending",
+      status,
       source: "web",
       visitorId,
+      aiVerdict: ai.verdict,
+      aiReason: ai.reason,
     },
   });
 

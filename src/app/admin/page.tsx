@@ -12,6 +12,8 @@ type Post = {
   status: string;
   source: string;
   pinned: boolean;
+  aiVerdict: string | null;
+  aiReason: string | null;
   createdAt: string;
 };
 
@@ -21,8 +23,31 @@ type Comment = {
   name: string | null;
   content: string;
   status: string;
+  aiVerdict: string | null;
+  aiReason: string | null;
   createdAt: string;
 };
+
+const AI_LABELS: Record<string, { label: string; className: string }> = {
+  approved: { label: "AI通过", className: "bg-[var(--color-moss)]/10 text-[var(--color-moss)]" },
+  rejected: { label: "AI拒绝", className: "bg-[var(--color-crimson)]/10 text-[var(--color-crimson)]" },
+  uncertain: { label: "AI存疑", className: "bg-[var(--color-amber)]/10 text-[var(--color-amber)]" },
+  error: { label: "AI异常", className: "bg-[var(--color-line)] text-[var(--color-ink-muted)]" },
+};
+
+function AiBadge({ verdict, reason }: { verdict: string | null; reason: string | null }) {
+  if (!verdict) return null;
+  const meta = AI_LABELS[verdict];
+  if (!meta) return null;
+  return (
+    <span
+      title={reason ?? undefined}
+      className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] ${meta.className}`}
+    >
+      {meta.label}
+    </span>
+  );
+}
 
 type Word = string;
 
@@ -341,14 +366,17 @@ export default function AdminPage() {
                   {c.name ?? "匿名"} · 帖子 #{c.postId} ·{" "}
                   {new Date(c.createdAt).toLocaleString("zh-CN")}
                 </span>
-                <button
-                  onClick={() => {
-                    if (confirm("确定删除？")) actComment(c.id, "delete");
-                  }}
-                  className="px-3 py-1 rounded-full text-[var(--color-ink-muted)] hover:text-[var(--color-crimson)] transition-colors"
-                >
-                  删除
-                </button>
+                <div className="flex items-center gap-2">
+                  <AiBadge verdict={c.aiVerdict} reason={c.aiReason} />
+                  <button
+                    onClick={() => {
+                      if (confirm("确定删除？")) actComment(c.id, "delete");
+                    }}
+                    className="px-3 py-1 rounded-full text-[var(--color-ink-muted)] hover:text-[var(--color-crimson)] transition-colors"
+                  >
+                    删除
+                  </button>
+                </div>
               </div>
             </div>
           ))}
@@ -394,9 +422,10 @@ export default function AdminPage() {
                   </div>
                 )}
                 <div className="flex items-center justify-between text-xs text-[var(--color-ink-muted)]">
-                  <span>
+                  <span className="flex items-center gap-2">
                     {p.author ?? "匿名"} · {p.source} ·{" "}
                     {new Date(p.createdAt).toLocaleString("zh-CN")}
+                    <AiBadge verdict={p.aiVerdict} reason={p.aiReason} />
                   </span>
                   <div className="flex gap-2">
                     {p.status === "approved" && (

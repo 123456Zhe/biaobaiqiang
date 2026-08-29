@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { checkText } from "@/lib/dfa";
+import { moderateText } from "@/lib/ai-moderation";
 import { allow } from "@/lib/ratelimit";
 
 export const dynamic = "force-dynamic";
@@ -57,8 +58,31 @@ export async function POST(
     );
   }
 
+  const ai = await moderateText(content);
+  if (ai.verdict === "rejected") {
+    return Response.json(
+      { error: "评论未通过审核", reason: ai.reason },
+      { status: 400 },
+    );
+  }
+  if (ai.verdict === "error") {
+    return Response.json(
+      { error: "审核服务暂时不可用，请稍后重试" },
+      { status: 400 },
+    );
+  }
+  const status = ai.verdict === "approved" ? "approved" : "pending";
+
   const comment = await prisma.comment.create({
-    data: { postId: numId, name, content, status: "approved", visitorId },
+    data: {
+      postId: numId,
+      name,
+      content,
+      status,
+      visitorId,
+      aiVerdict: ai.verdict,
+      aiReason: ai.reason,
+    },
   });
-  return Response.json({ ok: true, id: comment.id });
+  return Response.json({ ok: true, id: comment.id, status });
 }

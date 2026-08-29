@@ -20,6 +20,8 @@ model Post {
   wechatNo  Int?
   likeCount Int      @default(0)
   pinned    Boolean  @default(false)
+  aiVerdict String?
+  aiReason  String?
   createdAt DateTime @default(now())
 
   @@index([status, createdAt])
@@ -45,6 +47,8 @@ model Comment {
   content   String
   status    String   @default("pending")
   visitorId String?
+  aiVerdict String?
+  aiReason  String?
   createdAt DateTime @default(now())
 
   @@index([postId, status])
