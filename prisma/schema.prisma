@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Post {
+  id        Int      @id @default(autoincrement())
+  content   String
+  author    String?
+  target    String?
+  images    String   @default("[]")
+  status    String   @default("pending")
+  source    String   @default("web")
+  openId    String?
+  visitorId String?
+  wechatNo  Int?
+  likeCount Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([openId, createdAt])
+  @@index([visitorId])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  visitorId String
+  createdAt DateTime @default(now())
+
+  @@unique([postId, visitorId])
+  @@index([visitorId])
+}
+
+model Comment {
+  id        Int      @id @default(autoincrement())
+  postId    Int
+  name      String?
+  content   String
+  status    String   @default("pending")
+  visitorId String?
+  createdAt DateTime @default(now())
+
+  @@index([postId, status])
+  @@index([status, createdAt])
+  @@index([visitorId])
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  audience  String
+  visitorId String?
+  type      String
+  postId    Int?
+  title     String
+  body      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([audience, visitorId, read])
+  @@index([audience, read, createdAt])
+}
+
+model PushSubscription {
+  id        Int      @id @default(autoincrement())
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  audience  String
+  visitorId String?
+  createdAt DateTime @default(now())
+
+  @@index([audience, visitorId])
+}
+
+model SensitiveWord {
+  word String @id
+}
+
+model AdminLog {
+  id        Int      @id @default(autoincrement())
+  action    String
+  postId    Int?
+  detail    String?
+  createdAt DateTime @default(now())
+}

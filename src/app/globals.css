@@ -1,0 +1,94 @@
+@import "tailwindcss";
+
+@theme {
+  --color-paper: oklch(0.985 0.005 80);
+  --color-paper-soft: oklch(0.95 0.012 80);
+  --color-ink: oklch(0.22 0.02 50);
+  --color-ink-soft: oklch(0.45 0.012 55);
+  --color-ink-muted: oklch(0.62 0.008 60);
+  --color-line: oklch(0.90 0.008 70);
+  --color-vermilion: oklch(0.62 0.16 35);
+  --color-vermilion-soft: oklch(0.92 0.04 40);
+  --color-vermilion-deep: oklch(0.52 0.18 32);
+  --color-moss: oklch(0.65 0.12 155);
+  --color-amber: oklch(0.78 0.14 75);
+  --color-crimson: oklch(0.62 0.20 25);
+
+  --font-serif: var(--font-serif-cn), "Source Han Serif SC", "Noto Serif SC", "Songti SC", "STSong", serif;
+  --font-sans: var(--font-sans-cn), "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Code", "Consolas", monospace;
+
+  --radius-card: 14px;
+  --radius-chip: 9999px;
+  --radius-sm: 6px;
+
+  --shadow-soft: 0 1px 2px oklch(0.22 0.02 50 / 0.04), 0 8px 24px -12px oklch(0.22 0.02 50 / 0.08);
+  --shadow-lift: 0 1px 2px oklch(0.22 0.02 50 / 0.05), 0 12px 32px -8px oklch(0.22 0.02 50 / 0.12);
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--color-vermilion-soft);
+  color: var(--color-vermilion-deep);
+}
+
+.font-serif {
+  font-family: var(--font-serif);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes heart-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.animate-rise {
+  animation: rise-in 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+
+.animate-heart {
+  animation: heart-pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px dashed var(--color-vermilion);
+  outline-offset: 3px;
+  border-radius: 4px;
+}

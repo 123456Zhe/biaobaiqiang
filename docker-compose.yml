@@ -1,0 +1,20 @@
+services:
+  app:
+    build: .
+    container_name: biaobaiqiang
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "file:/app/data/dev.db"
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
+      SESSION_SECRET: "${SESSION_SECRET:-change-me-in-prod}"
+      WECHAT_TOKEN: "${WECHAT_TOKEN:-}"
+      PUBLIC_SITE_URL: "${PUBLIC_SITE_URL:-}"
+    volumes:
+      - biaobaiqiang_data:/app/data
+      - biaobaiqiang_uploads:/app/public/uploads
+
+volumes:
+  biaobaiqiang_data:
+  biaobaiqiang_uploads:
