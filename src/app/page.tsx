@@ -12,11 +12,20 @@ type Post = {
   images: string;
   likeCount: number;
   liked: boolean;
+  pinned?: boolean;
+  createdAt: string;
+};
+
+type Announcement = {
+  id: number;
+  content: string;
   createdAt: string;
 };
 
 export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
+  const [pinned, setPinned] = useState<Post[]>([]);
+  const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [cursor, setCursor] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -40,6 +49,8 @@ export default function Home() {
         headers: { "x-visitor-id": getVisitorId() },
       });
       const data = await res.json();
+      setPinned(data.pinned ?? []);
+      setAnnouncements(data.announcements ?? []);
       if (data.items.length === 0) {
         setDone(true);
       } else {
@@ -75,7 +86,7 @@ export default function Home() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cursor, done]);
 
-  const visible = posts.filter((p) => {
+  const matchesFilter = (p: Post) => {
     if (filter === "image") {
       try {
         return JSON.parse(p.images).length > 0;
@@ -84,7 +95,9 @@ export default function Home() {
       }
     }
     return true;
-  });
+  };
+  const pinnedVisible = pinned.filter(matchesFilter);
+  const visible = posts.filter(matchesFilter);
 
   async function handleLike(id: number) {
     const res = await fetch(`/api/posts/${id}/like`, {
@@ -128,11 +141,39 @@ export default function Home() {
           ))}
         </div>
         <span className="text-[var(--color-ink-muted)] tabular-nums">
-          {visible.length} 条
+          {pinnedVisible.length + visible.length} 条
         </span>
       </div>
 
-      {visible.length === 0 && !loading && (
+      {announcements.length > 0 && (
+        <div className="mb-8 space-y-2">
+          {announcements.map((a) => (
+            <div
+              key={a.id}
+              className="flex items-start gap-3 bg-[var(--color-paper-soft)] border border-[var(--color-vermilion)]/20 rounded-[var(--radius-card)] px-5 py-3.5"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                className="w-4 h-4 mt-1 text-[var(--color-vermilion)] shrink-0"
+              >
+                <path
+                  d="M3 10v4l11 4V6L3 10zM14 8.5c1.5 0 3 1.6 3 3.5s-1.5 3.5-3 3.5M6 14v4a1 1 0 0 0 1 1h2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+              <p className="text-sm text-[var(--color-ink)] leading-relaxed font-serif whitespace-pre-wrap break-words">
+                {a.content}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {pinnedVisible.length + visible.length === 0 && !loading && (
         <div className="text-center py-32 text-[var(--color-ink-muted)]">
           <p className="font-serif text-xl text-[var(--color-ink-soft)] mb-2">墙上还很安静</p>
           <p className="text-sm">做第一个留言的人吧。</p>
@@ -140,7 +181,7 @@ export default function Home() {
       )}
 
       <div className="columns-1 sm:columns-2 lg:columns-3 gap-5 [column-fill:_balance]">
-        {visible.map((p, i) => (
+        {[...pinnedVisible, ...visible].map((p, i) => (
           <div
             key={p.id}
             className="mb-5 break-inside-avoid animate-rise"

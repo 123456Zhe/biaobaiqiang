@@ -11,6 +11,7 @@ type Post = {
   images: string;
   likeCount: number;
   liked?: boolean;
+  pinned?: boolean;
   createdAt: string | Date;
 };
 
@@ -57,6 +58,14 @@ export function PostCard({ post, onLike }: { post: Post; onLike: (id: number) =>
       href={`/post/${post.id}`}
       className="group block bg-[var(--color-paper-soft)] rounded-[var(--radius-card)] p-6 border border-[var(--color-line)]/60 hover:border-[var(--color-line)] hover:shadow-[var(--shadow-soft)] transition-all duration-200"
     >
+      {post.pinned && (
+        <div className="inline-flex items-center gap-1 mb-2 px-2 py-0.5 rounded-full bg-[var(--color-vermilion)]/10 text-[var(--color-vermilion-deep)] text-xs font-serif">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-3 h-3">
+            <path d="M12 17v5M9 4h6l1 7 2 2v2H6v-2l2-2 1-7z" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          置顶
+        </div>
+      )}
       {post.target && (
         <div className="text-xs text-[var(--color-ink-muted)] mb-3 font-serif">
           写给 <span className="text-[var(--color-vermilion-deep)]">{post.target}</span>

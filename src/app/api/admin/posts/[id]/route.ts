@@ -19,9 +19,11 @@ export async function POST(
     return Response.json({ error: "无效 id" }, { status: 400 });
   }
   const { action } = (await request.json()) as { action?: string };
-  const data: Record<string, string> = {};
+  const data: Record<string, string | boolean> = {};
   if (action === "approve") data.status = "approved";
   else if (action === "reject") data.status = "rejected";
+  else if (action === "pin") data.pinned = true;
+  else if (action === "unpin") data.pinned = false;
   else if (action === "delete") {
     const old = await prisma.post.findUnique({ where: { id: numId } });
     await prisma.post.delete({ where: { id: numId } });
@@ -46,20 +48,22 @@ export async function POST(
   }
   const post = await prisma.post.update({ where: { id: numId }, data });
   await prisma.adminLog.create({ data: { action, postId: numId } });
-  await prisma.notification.updateMany({
-    where: { audience: "admin", postId: numId, type: "pending" },
-    data: { read: true },
-  });
-  if (post.visitorId) {
-    await createNotification({
-      audience: "visitor",
-      visitorId: post.visitorId,
-      type: action === "approve" ? "approved" : "rejected",
-      postId: numId,
-      title:
-        action === "approve" ? "你的投稿已通过审核" : "你的投稿未通过审核",
-      body: truncate(post.content, 60),
+  if (action === "approve" || action === "reject") {
+    await prisma.notification.updateMany({
+      where: { audience: "admin", postId: numId, type: "pending" },
+      data: { read: true },
     });
+    if (post.visitorId) {
+      await createNotification({
+        audience: "visitor",
+        visitorId: post.visitorId,
+        type: action === "approve" ? "approved" : "rejected",
+        postId: numId,
+        title:
+          action === "approve" ? "你的投稿已通过审核" : "你的投稿未通过审核",
+        body: truncate(post.content, 60),
+      });
+    }
   }
   return Response.json({ ok: true });
 }

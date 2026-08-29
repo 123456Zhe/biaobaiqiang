@@ -33,8 +33,12 @@ export async function GET(request: NextRequest) {
   const take = Math.min(Number(searchParams.get("take") ?? 20), 50);
 
   const where = { status: "approved" as const };
+  const pinned = await prisma.post.findMany({
+    where: { ...where, pinned: true },
+    orderBy: { createdAt: "desc" },
+  });
   const posts = await prisma.post.findMany({
-    where,
+    where: { ...where, pinned: false },
     take: take + 1,
     ...(cursor ? { cursor: { id: Number(cursor) }, skip: 1 } : {}),
     orderBy: { createdAt: "desc" },
@@ -45,15 +49,27 @@ export async function GET(request: NextRequest) {
   const validVisitor =
     visitorId && /^[a-zA-Z0-9-]{8,64}$/.test(visitorId) ? visitorId : null;
   let likedSet = new Set<number>();
-  if (validVisitor && items.length > 0) {
+  if (validVisitor && items.length + pinned.length > 0) {
     const likes = await prisma.like.findMany({
-      where: { visitorId: validVisitor, postId: { in: items.map((p) => p.id) } },
+      where: {
+        visitorId: validVisitor,
+        postId: {
+          in: [...items.map((p) => p.id), ...pinned.map((p) => p.id)],
+        },
+      },
       select: { postId: true },
     });
     likedSet = new Set(likes.map((l) => l.postId));
   }
+  const announcements = await prisma.announcement.findMany({
+    where: { active: true },
+    orderBy: { createdAt: "desc" },
+    take: 5,
+  });
   return Response.json({
     items: items.map((p) => ({ ...p, liked: likedSet.has(p.id) })),
+    pinned: pinned.map((p) => ({ ...p, liked: likedSet.has(p.id) })),
+    announcements,
     nextCursor: hasMore ? items[items.length - 1].id : null,
   });
 }

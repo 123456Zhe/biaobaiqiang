@@ -19,9 +19,11 @@ model Post {
   visitorId String?
   wechatNo  Int?
   likeCount Int      @default(0)
+  pinned    Boolean  @default(false)
   createdAt DateTime @default(now())
 
   @@index([status, createdAt])
+  @@index([status, pinned])
   @@index([openId, createdAt])
   @@index([visitorId])
 }
@@ -86,5 +88,12 @@ model AdminLog {
   action    String
   postId    Int?
   detail    String?
+  createdAt DateTime @default(now())
+}
+
+model Announcement {
+  id        Int      @id @default(autoincrement())
+  content   String
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
 }
