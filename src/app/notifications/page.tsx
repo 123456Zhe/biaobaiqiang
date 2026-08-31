@@ -108,11 +108,11 @@ export default function NotificationsPage() {
   }
 
   if (authed === null) {
-    return <div className="max-w-2xl mx-auto px-6 py-12 text-[var(--color-ink-muted)]">…</div>;
+    return <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 text-[var(--color-ink-muted)]">…</div>;
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 sm:py-16">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-serif text-3xl text-[var(--color-ink)]">通知</h1>
         <div className="flex items-center gap-4">

@@ -134,7 +134,7 @@ export default function PostPage() {
 
   if (error) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-24 text-center">
         <p className="font-serif text-2xl text-[var(--color-ink-soft)] mb-4">{error}</p>
         <button
           onClick={() => router.push("/")}
@@ -147,11 +147,11 @@ export default function PostPage() {
   }
 
   if (!post) {
-    return <div className="max-w-2xl mx-auto px-6 py-24 text-center text-[var(--color-ink-muted)]">…</div>;
+    return <div className="max-w-2xl mx-auto px-4 sm:px-6 py-24 text-center text-[var(--color-ink-muted)]">…</div>;
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 sm:py-16">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <button
         onClick={() => router.back()}
         className="text-sm text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors mb-8"
@@ -159,7 +159,7 @@ export default function PostPage() {
         ← 返回
       </button>
 
-      <article className="bg-[var(--color-paper-soft)] rounded-[var(--radius-card)] border border-[var(--color-line)]/60 p-8 sm:p-10">
+      <article className="bg-[var(--color-paper-soft)] rounded-[var(--radius-card)] border border-[var(--color-line)]/60 p-5 sm:p-10">
         {post.target && (
           <div className="text-sm text-[var(--color-ink-muted)] mb-5 font-serif">
             写给 <span className="text-[var(--color-vermilion-deep)]">{post.target}</span>

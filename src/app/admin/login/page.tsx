@@ -29,7 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-6 py-24">
+    <div className="max-w-md mx-auto px-4 sm:px-6 py-16 sm:py-24">
       <h1 className="font-serif text-3xl text-[var(--color-ink)] mb-2">管理入口</h1>
       <p className="text-sm text-[var(--color-ink-soft)] mb-8">
         输入管理密码进入。

@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>白墙小程序 · UI 设计稿</title>
+<style>
+  :root {
+    --paper: oklch(0.985 0.005 80);
+    --paper-soft: oklch(0.95 0.012 80);
+    --ink: oklch(0.22 0.02 50);
+    --ink-soft: oklch(0.45 0.012 55);
+    --ink-muted: oklch(0.62 0.008 60);
+    --line: oklch(0.90 0.008 70);
+    --vermilion: oklch(0.62 0.16 35);
+    --vermilion-soft: oklch(0.92 0.04 40);
+    --vermilion-deep: oklch(0.52 0.18 32);
+    --moss: oklch(0.65 0.12 155);
+    --moss-soft: oklch(0.93 0.03 155);
+    --amber: oklch(0.78 0.14 75);
+    --amber-soft: oklch(0.94 0.05 85);
+    --amber-deep: oklch(0.58 0.12 70);
+    --crimson: oklch(0.62 0.20 25);
+    --crimson-soft: oklch(0.93 0.03 30);
+    --serif: "Songti SC", "Noto Serif SC", "STSong", "SimSun", serif;
+    --sans: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: oklch(0.935 0.008 80);
+    font-family: var(--sans);
+    color: var(--ink);
+    padding: 48px 24px 80px;
+  }
+  .page-title { font-family: var(--serif); font-size: 22px; text-align: center; letter-spacing: 2px; }
+  .page-sub { text-align: center; font-size: 13px; color: var(--ink-muted); margin-top: 6px; }
+  .swatches { display: flex; justify-content: center; gap: 14px; margin: 24px 0 40px; flex-wrap: wrap; }
+  .swatch { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 11px; color: var(--ink-soft); }
+  .swatch i { width: 28px; height: 28px; border-radius: 6px; border: 1px solid var(--line); display: block; }
+  .screens { display: flex; gap: 48px; justify-content: center; flex-wrap: wrap; }
+  .shot { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .caption { max-width: 340px; }
+  .caption h3 { font-family: var(--serif); font-size: 16px; letter-spacing: 1px; }
+  .caption p { font-size: 12.5px; color: var(--ink-soft); line-height: 1.7; margin-top: 4px; }
+  .caption b { color: var(--vermilion-deep); font-weight: 600; }
+
+  /* ---------- 手机框 ---------- */
+  .phone {
+    width: 375px; height: 812px; border-radius: 44px;
+    background: var(--paper);
+    border: 10px solid oklch(0.25 0.01 60);
+    overflow: hidden; position: relative;
+    display: flex; flex-direction: column;
+    box-shadow: 0 24px 60px -20px oklch(0.22 0.02 50 / 0.35);
+  }
+  .statusbar {
+    height: 44px; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px; font-size: 13px; font-weight: 600; color: var(--ink); flex-shrink: 0;
+  }
+  .capsule {
+    display: flex; align-items: center; gap: 10px;
+    border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 12px; font-size: 12px; color: var(--ink-soft); background: oklch(1 0 0 / 0.5);
+  }
+  .capsule span { line-height: 1; }
+  .capsule i { width: 1px; height: 12px; background: var(--line); }
+
+  /* ---------- 自定义导航 ---------- */
+  .nav { display: flex; align-items: center; gap: 10px; padding: 4px 16px 10px; flex-shrink: 0; }
+  .seal {
+    width: 30px; height: 30px; background: var(--vermilion); border-radius: 6px;
+    color: oklch(0.98 0.005 80); font-family: var(--serif); font-size: 11px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    line-height: 1.15; letter-spacing: 0; box-shadow: inset 0 0 0 1.5px oklch(0.98 0.005 80 / 0.35);
+  }
+  .nav-title { font-family: var(--serif); font-size: 18px; letter-spacing: 2px; }
+  .nav-side { margin-left: auto; writing-mode: vertical-rl; font-family: var(--serif); font-size: 10px; color: var(--ink-muted); letter-spacing: 3px; }
+
+  .body { flex: 1; overflow: hidden; position: relative; }
+  .scroll { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+
+  /* ---------- 首页 ---------- */
+  .notice {
+    display: flex; align-items: center; gap: 8px;
+    margin: 4px 12px 10px; padding: 8px 12px;
+    background: var(--paper-soft); border: 1px solid var(--line); border-radius: 8px;
+    font-size: 12px; color: var(--ink-soft);
+  }
+  .notice .tag { font-family: var(--serif); color: var(--moss); font-weight: 600; flex-shrink: 0; }
+  .notice .more { margin-left: auto; color: var(--ink-muted); }
+  .masonry { columns: 2; column-gap: 10px; padding: 0 12px 90px; }
+  .card {
+    break-inside: avoid; margin-bottom: 10px;
+    background: var(--paper-soft); border: 1px solid oklch(0.90 0.008 70 / 0.7);
+    border-radius: 12px; padding: 14px;
+  }
+  .pin-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid var(--vermilion); color: var(--vermilion-deep);
+    font-family: var(--serif); font-size: 10px; letter-spacing: 1px;
+    padding: 1px 7px; border-radius: 4px; margin-bottom: 8px;
+  }
+  .card .to { font-size: 11px; color: var(--ink-muted); font-family: var(--serif); margin-bottom: 8px; }
+  .card .to b { color: var(--vermilion-deep); font-weight: 600; }
+  .card p { font-family: var(--serif); font-size: 13.5px; line-height: 1.9; color: var(--ink); }
+  .photo {
+    margin-top: 10px; border-radius: 8px; height: 120px;
+    background: linear-gradient(160deg, var(--vermilion-soft), oklch(0.88 0.03 60) 55%, var(--paper-soft));
+    border: 1px solid oklch(0.90 0.008 70 / 0.7);
+  }
+  .photo.tall { height: 150px; }
+  .card footer {
+    margin-top: 12px; padding-top: 10px; border-top: 1px solid oklch(0.90 0.008 70 / 0.6);
+    display: flex; align-items: center; justify-content: space-between;
+    font-size: 10.5px; color: var(--ink-muted);
+  }
+  .heart { display: flex; align-items: center; gap: 4px; color: var(--ink-muted); }
+  .heart.liked { color: var(--vermilion); }
+  .heart svg { width: 13px; height: 13px; }
+  .heart.liked svg path { fill: currentColor; }
+
+  .skeleton { break-inside: avoid; margin-bottom: 10px; border-radius: 12px; padding: 14px;
+    background: var(--paper-soft); border: 1px solid oklch(0.90 0.008 70 / 0.5); }
+  .sk { border-radius: 4px; background: linear-gradient(90deg, oklch(0.92 0.01 80) 25%, oklch(0.95 0.008 80) 50%, oklch(0.92 0.01 80) 75%);
+    background-size: 400% 100%; animation: shimmer 1.4s infinite linear; }
+  @keyframes shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+
+  /* ---------- 标签栏 ---------- */
+  .tabbar {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    height: 78px; padding-bottom: 18px;
+    background: oklch(0.985 0.005 80 / 0.94); backdrop-filter: blur(8px);
+    border-top: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: space-around;
+  }
+  .tab { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 10.5px; color: var(--ink-muted); width: 64px; }
+  .tab.active { color: var(--vermilion-deep); }
+  .tab svg { width: 21px; height: 21px; }
+  .tab-compose { transform: translateY(-16px); }
+  .tab-compose .btn-seal {
+    width: 46px; height: 46px; border-radius: 10px; background: var(--vermilion);
+    color: oklch(0.98 0.005 80); font-family: var(--serif); font-size: 21px;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 8px 20px -6px oklch(0.52 0.18 32 / 0.5), inset 0 0 0 2px oklch(0.98 0.005 80 / 0.3);
+  }
+  .tab-compose .lbl { color: var(--ink-soft); }
+
+  /* ---------- 投稿页 ---------- */
+  .form { padding: 8px 18px 30px; }
+  .field-label { font-family: var(--serif); font-size: 13px; color: var(--ink-soft); letter-spacing: 2px; margin-bottom: 10px; }
+  .field-label b { color: var(--vermilion-deep); font-weight: 600; }
+  .write-to {
+    display: flex; align-items: baseline; gap: 8px; margin-bottom: 22px;
+    border-bottom: 1px dashed oklch(0.62 0.16 35 / 0.4); padding-bottom: 8px;
+  }
+  .write-to .pre { font-family: var(--serif); font-size: 15px; color: var(--ink); }
+  .write-to .ph { font-size: 13px; color: var(--ink-muted); }
+  .write-to .caret { width: 1px; height: 16px; background: var(--vermilion); animation: blink 1.1s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+  .paper {
+    height: 240px; border-radius: 10px; border: 1px solid oklch(0.90 0.008 70 / 0.7);
+    background:
+      repeating-linear-gradient(to bottom, transparent 0 33px, oklch(0.90 0.008 70 / 0.55) 33px 34px),
+      var(--paper-soft);
+    padding: 10px 14px; font-family: var(--serif); font-size: 15px; line-height: 34px; color: var(--ink);
+  }
+  .paper .ph { color: var(--ink-muted); }
+  .row-label { display: flex; align-items: center; justify-content: space-between; margin: 22px 0 10px; }
+  .chips { display: flex; gap: 8px; }
+  .chip {
+    font-size: 12px; padding: 5px 14px; border-radius: 6px;
+    border: 1px solid var(--line); color: var(--ink-soft); background: var(--paper);
+  }
+  .chip.on { border-color: var(--vermilion); color: var(--vermilion-deep); background: var(--vermilion-soft); font-weight: 600; }
+  .imgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .img-cell { aspect-ratio: 1; border-radius: 8px; position: relative;
+    background: linear-gradient(160deg, var(--vermilion-soft), var(--paper-soft)); border: 1px solid oklch(0.90 0.008 70 / 0.7); }
+  .img-cell .x {
+    position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; border-radius: 50%;
+    background: oklch(0.22 0.02 50 / 0.55); color: oklch(0.98 0.005 80);
+    font-size: 10px; display: flex; align-items: center; justify-content: center;
+  }
+  .img-add {
+    aspect-ratio: 1; border-radius: 8px; border: 1px dashed oklch(0.62 0.008 60 / 0.6);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+    color: var(--ink-muted); font-size: 10px; background: oklch(1 0 0 / 0.35);
+  }
+  .img-add b { font-size: 20px; font-weight: 300; color: var(--ink-soft); }
+  .rules {
+    margin-top: 22px; padding: 10px 12px; border-top: 1px solid oklch(0.90 0.008 70 / 0.5);
+    font-size: 11px; color: var(--ink-muted); line-height: 1.8;
+  }
+  .submit {
+    margin-top: 18px; width: 100%; height: 48px; border: none; border-radius: 8px;
+    background: var(--vermilion); color: oklch(0.98 0.005 80);
+    font-family: var(--serif); font-size: 16px; letter-spacing: 10px; text-indent: 10px;
+  }
+  .submit:active { background: var(--vermilion-deep); }
+  .submit-hint { text-align: center; font-size: 11px; color: var(--ink-muted); margin-top: 10px; }
+
+  /* ---------- 我的 ---------- */
+  .me { padding: 8px 18px 30px; }
+  .profile { display: flex; align-items: center; gap: 14px; padding: 16px 0 18px; }
+  .avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: var(--vermilion-soft); border: 1px solid oklch(0.90 0.008 70 / 0.7);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--serif); font-size: 22px; color: var(--vermilion-deep);
+  }
+  .profile .name { font-size: 15px; font-weight: 600; }
+  .profile .stats { font-size: 12px; color: var(--ink-muted); margin-top: 4px; }
+  .profile .stats b { color: var(--ink-soft); }
+  .list-head {
+    font-family: var(--serif); font-size: 13px; letter-spacing: 2px; color: var(--ink-soft);
+    padding: 14px 0 4px; border-bottom: 1px solid oklch(0.90 0.008 70 / 0.6);
+    display: flex; justify-content: space-between; align-items: baseline;
+  }
+  .list-head span { font-family: var(--sans); font-size: 11px; color: var(--ink-muted); letter-spacing: 0; }
+  .row { display: flex; align-items: center; gap: 12px; padding: 13px 0; border-bottom: 1px solid oklch(0.90 0.008 70 / 0.45); }
+  .row .excerpt { flex: 1; min-width: 0; }
+  .row .excerpt p { font-family: var(--serif); font-size: 13.5px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .row .excerpt time { font-size: 10.5px; color: var(--ink-muted); display: block; margin-top: 3px; }
+  .status { flex-shrink: 0; font-size: 11px; padding: 3px 10px; border-radius: 4px; letter-spacing: 1px; }
+  .status.pending { background: var(--amber-soft); color: var(--amber-deep); }
+  .status.approved { background: var(--moss-soft); color: oklch(0.48 0.11 155); }
+  .status.rejected { background: var(--crimson-soft); color: var(--crimson); }
+  .me-note { font-size: 11px; color: var(--ink-muted); line-height: 1.8; margin-top: 16px; padding-left: 10px; border-left: 2px solid var(--vermilion-soft); }
+</style>
+</head>
+<body>
+
+<h1 class="page-title">白墙 · 小程序界面设计</h1>
+<p class="page-sub">延续网页端「暖朱砂 × 宣纸白」语言 · 宋体正文 · 印章为记 · 发丝线分界</p>
+
+<div class="swatches">
+  <div class="swatch"><i style="background:var(--vermilion)"></i>朱砂</div>
+  <div class="swatch"><i style="background:var(--vermilion-deep)"></i>深朱</div>
+  <div class="swatch"><i style="background:var(--paper)"></i>宣纸</div>
+  <div class="swatch"><i style="background:var(--paper-soft)"></i>素笺</div>
+  <div class="swatch"><i style="background:var(--ink)"></i>墨</div>
+  <div class="swatch"><i style="background:var(--moss)"></i>苔绿</div>
+  <div class="swatch"><i style="background:var(--amber)"></i>琥珀</div>
+  <div class="swatch"><i style="background:var(--crimson)"></i>绛</div>
+</div>
+
+<div class="screens">
+
+  <!-- ============ 首页 ============ -->
+  <div class="shot">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><div class="capsule"><span>⋯</span><i></i><span>◎</span></div></div>
+      <div class="nav">
+        <div class="seal"><span>白</span><span>墙</span></div>
+        <div class="nav-title">白墙</div>
+        <div class="nav-side">校园表白墙</div>
+      </div>
+      <div class="body">
+        <div class="scroll">
+          <div class="notice">
+            <span class="tag">告</span>
+            <span>毕业季主题征集：把没说出口的话，写在墙上。</span>
+            <span class="more">›</span>
+          </div>
+          <div class="masonry">
+            <div class="card">
+              <div class="pin-badge">置 顶</div>
+              <p>三年前在这面墙上许的愿望实现了。谢谢每一个认真写字的人，墙会一直在。</p>
+              <footer><span>— 管理员 · 2 天前</span><span class="heart liked"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.5-9.5-9.5C.8 7.8 3.4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3.6 0 6.2 3.8 4.5 7.5C19 16.5 12 21 12 21z"/></svg>328</span></footer>
+            </div>
+            <div class="card">
+              <div class="to">写给 <b>三教楼下的猫</b></div>
+              <p>今天你终于肯让我摸了。期末周的快乐，一只猫就够了。</p>
+              <footer><span>— 喂猫的 · 5 小时前</span><span class="heart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.5-9.5-9.5C.8 7.8 3.4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3.6 0 6.2 3.8 4.5 7.5C19 16.5 12 21 12 21z"/></svg>46</span></footer>
+            </div>
+            <div class="card">
+              <div class="to">写给 <b>图书馆四楼靠窗的人</b></div>
+              <p>每天都坐在同一个位置。你的书我全都读过。</p>
+              <div class="photo tall"></div>
+              <footer><span>— 匿名 · 昨天</span><span class="heart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.5-9.5-9.5C.8 7.8 3.4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3.6 0 6.2 3.8 4.5 7.5C19 16.5 12 21 12 21z"/></svg>102</span></footer>
+            </div>
+            <div class="card">
+              <p>宿管阿姨今天多给了我一个茶叶蛋，说我瘦了。其实我没有。</p>
+              <footer><span>— 六栋的 · 3 小时前</span><span class="heart"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s-7-4.5-9.5-9.5C.8 7.8 3.4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3.6 0 6.2 3.8 4.5 7.5C19 16.5 12 21 12 21z"/></svg>87</span></footer>
+            </div>
+            <div class="skeleton">
+              <div class="sk" style="height:12px;width:60%;margin-bottom:10px"></div>
+              <div class="sk" style="height:12px;width:90%;margin-bottom:8px"></div>
+              <div class="sk" style="height:12px;width:75%"></div>
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
+            白墙
+          </div>
+          <div class="tab tab-compose">
+            <div class="btn-seal">投</div>
+            <span class="lbl">投稿</span>
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+            我的
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <h3>首页 · 瀑布流</h3>
+      <p><b>印章即品牌</b>：左上角朱砂印章代替 logo，底栏投稿键也做成印章形。<b>发丝线代替阴影</b>，卡片浮在宣纸上靠 1px 线区分。<b>竖排侧款</b>「校园表白墙」是导航右侧的落款。公告用「告」字苔绿签条，底部两张骨架屏表示加载中状态。</p>
+    </div>
+  </div>
+
+  <!-- ============ 投稿 ============ -->
+  <div class="shot">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><div class="capsule"><span>⋯</span><i></i><span>◎</span></div></div>
+      <div class="nav">
+        <span style="font-size:18px;color:var(--ink-soft)">‹</span>
+        <div class="nav-title" style="font-size:16px">写一封信</div>
+      </div>
+      <div class="body">
+        <div class="scroll">
+          <div class="form">
+            <div class="write-to">
+              <span class="pre">写给</span>
+              <span class="caret"></span>
+              <span class="ph">那个人，或那件事（可不填）</span>
+            </div>
+            <div class="field-label"><b>落笔</b></div>
+            <div class="paper"><span class="ph">想说的话，墙替你保密。</span></div>
+            <div class="row-label">
+              <div class="field-label" style="margin:0">署名</div>
+              <div class="chips">
+                <span class="chip on">匿名</span>
+                <span class="chip">笔名</span>
+              </div>
+            </div>
+            <div class="field-label">附图</div>
+            <div class="imgs">
+              <div class="img-cell"><span class="x">×</span></div>
+              <div class="img-cell"><span class="x">×</span></div>
+              <div class="img-add"><b>＋</b>添加</div>
+            </div>
+            <div class="rules">
+              投稿经审核后上墙 · 含敏感词将被退回<br>
+              十分钟内最多投稿三篇 · 图片不超过 5MB
+            </div>
+            <button class="submit">投递</button>
+            <div class="submit-hint">未通过审核的内容不会公开展示</div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
+            白墙
+          </div>
+          <div class="tab tab-compose">
+            <div class="btn-seal" style="background:var(--vermilion-deep)">投</div>
+            <span class="lbl">投稿</span>
+          </div>
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+            我的
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <h3>投稿 · 一封信</h3>
+      <p>把投稿做成<b>写信</b>而不是填表：「写给___」是信头虚线，「落笔」区是<b>信纸横线</b>（34px 行距压着宋体）。署名用方角 chip，附图九宫格，规则提示用发丝线上边框。按钮「投递」二字加宽字距，按下变深朱。</p>
+    </div>
+  </div>
+
+  <!-- ============ 我的 ============ -->
+  <div class="shot">
+    <div class="phone">
+      <div class="statusbar"><span>9:41</span><div class="capsule"><span>⋯</span><i></i><span>◎</span></div></div>
+      <div class="nav">
+        <div class="nav-title">我的</div>
+        <div class="nav-side">只自己可见</div>
+      </div>
+      <div class="body">
+        <div class="scroll">
+          <div class="me">
+            <div class="profile">
+              <div class="avatar">客</div>
+              <div>
+                <div class="name">微信用户</div>
+                <div class="stats">投稿 <b>6</b> · 上墙 <b>4</b> · 收到赞 <b>233</b></div>
+              </div>
+            </div>
+            <div class="list-head">我的投稿 <span>按时间倒序</span></div>
+            <div class="row">
+              <div class="excerpt"><p>宿管阿姨今天多给了我一个茶叶蛋，说我瘦了…</p><time>今天 14:20</time></div>
+              <span class="status pending">待审核</span>
+            </div>
+            <div class="row">
+              <div class="excerpt"><p>今天你终于肯让我摸了。期末周的快乐，一只猫…</p><time>昨天 21:03</time></div>
+              <span class="status approved">已上墙</span>
+            </div>
+            <div class="row">
+              <div class="excerpt"><p>每天都坐在同一个位置。你的书我全都读过。</p><time>6 月 12 日</time></div>
+              <span class="status approved">已上墙</span>
+            </div>
+            <div class="row">
+              <div class="excerpt"><p>（含联系方式，未通过人工复核）</p><time>6 月 10 日</time></div>
+              <span class="status rejected">未通过</span>
+            </div>
+            <div class="me-note">
+              「待审核」通过后会自动上墙并通知你；<br>「未通过」的内容只有你自己能看见。
+            </div>
+          </div>
+        </div>
+        <div class="tabbar">
+          <div class="tab">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 10l9-7 9 7v10a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>
+            白墙
+          </div>
+          <div class="tab tab-compose">
+            <div class="btn-seal">投</div>
+            <span class="lbl">投稿</span>
+          </div>
+          <div class="tab active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+            我的
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">
+      <h3>我的 · 投稿进度</h3>
+      <p>状态用<b>色纸签</b>表达：琥珀「待审核」、苔绿「已上墙」、绛「未通过」，颜色之外还带文字，色弱可辨。列表是<b>行不是卡片</b>，发丝线分隔。头像位显示「客」字，接入微信登录后换成真实头像。</p>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
