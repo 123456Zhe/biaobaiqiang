@@ -4,11 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import { PostCard } from "@/components/PostCard";
 import { getVisitorId } from "@/components/NotificationBell";
 
+import { TAGS } from "@/lib/tags";
+
 type Post = {
   id: number;
   content: string;
   author: string | null;
   target: string | null;
+  tag: string | null;
   images: string;
   likeCount: number;
   liked: boolean;
@@ -26,24 +29,59 @@ export default function Home() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [pinned, setPinned] = useState<Post[]>([]);
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
-  const [cursor, setCursor] = useState<number | null>(null);
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<"all" | "image">("all");
+  const [query, setQuery] = useState("");
+  const [q, setQ] = useState("");
+  const [tag, setTag] = useState("");
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const loadingRef = useRef(false);
+  const cursorRef = useRef<number | null>(null);
+  const doneRef = useRef(false);
+  const qRef = useRef("");
+  const tagRef = useRef("");
   const loadedCursors = useRef<Set<string>>(new Set());
 
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const v = query.trim();
+      if (v !== qRef.current) {
+        qRef.current = v;
+        setQ(v);
+        resetAndLoad();
+      }
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query]);
+
+  useEffect(() => {
+    loadMore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function resetAndLoad() {
+    cursorRef.current = null;
+    doneRef.current = false;
+    loadedCursors.current.clear();
+    setPosts([]);
+    setPinned([]);
+    setDone(false);
+    loadMore();
+  }
+
   async function loadMore() {
-    if (loadingRef.current || done) return;
-    const cursorKey = cursor === null ? "" : String(cursor);
+    if (loadingRef.current || doneRef.current) return;
+    const cursorKey = cursorRef.current === null ? "" : String(cursorRef.current);
     if (loadedCursors.current.has(cursorKey)) return;
     loadingRef.current = true;
     setLoading(true);
     loadedCursors.current.add(cursorKey);
     const params = new URLSearchParams({ take: "20" });
-    if (cursor) params.set("cursor", String(cursor));
+    if (cursorRef.current !== null) params.set("cursor", String(cursorRef.current));
+    if (qRef.current) params.set("q", qRef.current);
+    if (tagRef.current) params.set("tag", tagRef.current);
     try {
       const res = await fetch(`/api/posts?${params}`, {
         headers: { "x-visitor-id": getVisitorId() },
@@ -52,6 +90,7 @@ export default function Home() {
       setPinned(data.pinned ?? []);
       setAnnouncements(data.announcements ?? []);
       if (data.items.length === 0) {
+        doneRef.current = true;
         setDone(true);
       } else {
         setPosts((p) => {
@@ -59,18 +98,13 @@ export default function Home() {
           const fresh = data.items.filter((x: Post) => !seen.has(x.id));
           return [...p, ...fresh];
         });
-        setCursor(data.nextCursor);
+        cursorRef.current = data.nextCursor;
       }
     } finally {
       loadingRef.current = false;
       setLoading(false);
     }
   }
-
-  useEffect(() => {
-    loadMore();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -83,8 +117,7 @@ export default function Home() {
     );
     io.observe(el);
     return () => io.disconnect();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cursor, done]);
+  }, []);
 
   const matchesFilter = (p: Post) => {
     if (filter === "image") {
@@ -112,7 +145,7 @@ export default function Home() {
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-6 py-12 sm:py-16">
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <section className="mb-12 sm:mb-16 max-w-2xl">
         <h1 className="font-serif text-4xl sm:text-5xl font-semibold text-[var(--color-ink)] leading-[1.2] tracking-tight">
           把想说的话，<br />
@@ -124,25 +157,56 @@ export default function Home() {
         </p>
       </section>
 
-      <div className="flex items-center justify-between mb-6 text-sm">
-        <div className="flex items-center gap-1 p-1 bg-[var(--color-paper-soft)] rounded-full border border-[var(--color-line)]/60">
-          {(["all", "image"] as const).map((k) => (
-            <button
-              key={k}
-              onClick={() => setFilter(k)}
-              className={`px-4 py-1.5 rounded-full transition-colors ${
-                filter === k
-                  ? "bg-[var(--color-paper)] text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
-                  : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-soft)]"
-              }`}
-            >
-              {k === "all" ? "全部" : "带图"}
-            </button>
-          ))}
+      <div className="mb-6 space-y-4">
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="搜索内容、写给谁、署名…"
+          className="w-full bg-[var(--color-paper-soft)] border border-[var(--color-line)] rounded-full px-5 py-2.5 text-sm text-[var(--color-ink)] placeholder:text-[var(--color-ink-muted)] focus:border-[var(--color-vermilion)] outline-none transition-colors"
+        />
+        <div className="flex items-center justify-between text-sm">
+          <div className="flex items-center gap-1 p-1 bg-[var(--color-paper-soft)] rounded-full border border-[var(--color-line)]/60 flex-wrap">
+            {["", ...TAGS].map((t) => (
+              <button
+                key={t || "all"}
+                onClick={() => {
+                  if (t === tagRef.current) return;
+                  tagRef.current = t;
+                  setTag(t);
+                  resetAndLoad();
+                }}
+                className={`px-4 py-1.5 rounded-full transition-colors ${
+                  tag === t
+                    ? "bg-[var(--color-paper)] text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
+                    : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-soft)]"
+                }`}
+              >
+                {t || "全部"}
+              </button>
+            ))}
+          </div>
+          {!q && !tag && (
+            <div className="flex items-center gap-1 p-1 bg-[var(--color-paper-soft)] rounded-full border border-[var(--color-line)]/60">
+              {(["all", "image"] as const).map((k) => (
+                <button
+                  key={k}
+                  onClick={() => setFilter(k)}
+                  className={`px-4 py-1.5 rounded-full transition-colors ${
+                    filter === k
+                      ? "bg-[var(--color-paper)] text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
+                      : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-soft)]"
+                  }`}
+                >
+                  {k === "all" ? "全部" : "带图"}
+                </button>
+              ))}
+            </div>
+          )}
+          <span className="text-[var(--color-ink-muted)] tabular-nums">
+            {pinnedVisible.length + visible.length} 条
+          </span>
         </div>
-        <span className="text-[var(--color-ink-muted)] tabular-nums">
-          {pinnedVisible.length + visible.length} 条
-        </span>
       </div>
 
       {announcements.length > 0 && (
@@ -175,8 +239,17 @@ export default function Home() {
 
       {pinnedVisible.length + visible.length === 0 && !loading && (
         <div className="text-center py-32 text-[var(--color-ink-muted)]">
-          <p className="font-serif text-xl text-[var(--color-ink-soft)] mb-2">墙上还很安静</p>
-          <p className="text-sm">做第一个留言的人吧。</p>
+          {q || tag ? (
+            <>
+              <p className="font-serif text-xl text-[var(--color-ink-soft)] mb-2">没有找到相关内容</p>
+              <p className="text-sm">换个关键词试试吧。</p>
+            </>
+          ) : (
+            <>
+              <p className="font-serif text-xl text-[var(--color-ink-soft)] mb-2">墙上还很安静</p>
+              <p className="text-sm">做第一个留言的人吧。</p>
+            </>
+          )}
         </div>
       )}
 

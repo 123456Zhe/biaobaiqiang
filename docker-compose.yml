@@ -11,6 +11,10 @@ services:
       SESSION_SECRET: "${SESSION_SECRET:-change-me-in-prod}"
       WECHAT_TOKEN: "${WECHAT_TOKEN:-}"
       PUBLIC_SITE_URL: "${PUBLIC_SITE_URL:-}"
+      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
+      OPENAI_BASE_URL: "${OPENAI_BASE_URL:-}"
+      OPENAI_MODEL: "${OPENAI_MODEL:-}"
+      OPENAI_VISION_MODEL: "${OPENAI_VISION_MODEL:-}"
     volumes:
       - biaobaiqiang_data:/app/data
       - biaobaiqiang_uploads:/app/public/uploads

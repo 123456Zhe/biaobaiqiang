@@ -1,9 +1,10 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { checkText } from "@/lib/dfa";
-import { moderateText } from "@/lib/ai-moderation";
+import { moderateImage, moderateText, type AiVerdict } from "@/lib/ai-moderation";
 import { allow } from "@/lib/ratelimit";
 import { seedSensitiveWords } from "@/lib/seed";
+import { isTag } from "@/lib/tags";
 import { createNotification, truncate } from "@/lib/notifications";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -17,27 +18,45 @@ const MAX_SIZE = 5 * 1024 * 1024;
 const ALLOWED = new Set(["image/jpeg", "image/png", "image/webp"]);
 const UPLOAD_DIR = process.env.UPLOAD_DIR ?? path.join(process.cwd(), "public", "uploads");
 
-async function saveImage(file: File): Promise<string> {
+async function saveImage(
+  file: File,
+): Promise<{ url: string; path: string; mime: string }> {
   if (file.size > MAX_SIZE) throw new Error("图片不能超过 5MB");
   if (!ALLOWED.has(file.type)) throw new Error("仅支持 jpg/png/webp");
   await fs.mkdir(UPLOAD_DIR, { recursive: true });
   const ext = file.type === "image/jpeg" ? "jpg" : file.type === "image/png" ? "png" : "webp";
   const name = `${Date.now()}-${crypto.randomBytes(6).toString("hex")}.${ext}`;
   const buf = Buffer.from(await file.arrayBuffer());
-  await fs.writeFile(path.join(UPLOAD_DIR, name), buf);
-  return `/api/uploads/${name}`;
+  const filePath = path.join(UPLOAD_DIR, name);
+  await fs.writeFile(filePath, buf);
+  return { url: `/api/uploads/${name}`, path: filePath, mime: file.type };
 }
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const cursor = searchParams.get("cursor");
   const take = Math.min(Number(searchParams.get("take") ?? 20), 50);
+  const q = searchParams.get("q")?.trim() ?? "";
+  const tag = searchParams.get("tag")?.trim() ?? "";
+  const searching = q.length > 0 || tag.length > 0;
 
-  const where = { status: "approved" as const };
-  const pinned = await prisma.post.findMany({
-    where: { ...where, pinned: true },
-    orderBy: { createdAt: "desc" },
-  });
+  const baseWhere: Record<string, unknown> = { status: "approved" as const };
+  if (tag && isTag(tag)) baseWhere.tag = tag;
+  if (q) {
+    baseWhere.OR = [
+      { content: { contains: q } },
+      { target: { contains: q } },
+      { author: { contains: q } },
+    ];
+  }
+
+  const where = baseWhere;
+  const pinned = searching
+    ? []
+    : await prisma.post.findMany({
+        where: { ...where, pinned: true },
+        orderBy: { createdAt: "desc" },
+      });
   const posts = await prisma.post.findMany({
     where: { ...where, pinned: false },
     take: take + 1,
@@ -90,6 +109,8 @@ export async function POST(request: NextRequest) {
   const author = String(form.get("author") ?? "").trim() || null;
   const target = String(form.get("target") ?? "").trim() || null;
   const visitorId = String(form.get("visitorId") ?? "").trim() || null;
+  const tagRaw = String(form.get("tag") ?? "").trim();
+  const tag = isTag(tagRaw) ? tagRaw : null;
   const files = form.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
 
   if (!content) {
@@ -117,13 +138,13 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  const status = ai.verdict === "approved" && files.length === 0 ? "approved" : "pending";
 
-  const imageUrls: string[] = [];
+  const saved: Array<{ url: string; path: string; mime: string }> = [];
   for (const file of files) {
     try {
-      imageUrls.push(await saveImage(file));
+      saved.push(await saveImage(file));
     } catch (e) {
+      await Promise.all(saved.map((s) => fs.unlink(s.path).catch(() => {})));
       return Response.json(
         { error: e instanceof Error ? e.message : "图片上传失败" },
         { status: 400 },
@@ -131,17 +152,45 @@ export async function POST(request: NextRequest) {
     }
   }
 
+  const reasons: string[] = [];
+  if (ai.reason && ai.verdict !== "approved") reasons.push(`文本：${ai.reason}`);
+  let imgVerdict: "approved" | "uncertain" | "error" = "approved";
+  for (const s of saved) {
+    const r = await moderateImage(s.path, s.mime);
+    if (r.verdict === "rejected") {
+      await Promise.all(saved.map((x) => fs.unlink(x.path).catch(() => {})));
+      return Response.json(
+        { error: "图片未通过审核", reason: r.reason },
+        { status: 400 },
+      );
+    }
+    if (r.verdict === "uncertain") {
+      imgVerdict = "uncertain";
+      reasons.push(`图片：${r.reason}`);
+    } else if (r.verdict === "error" && imgVerdict === "approved") {
+      imgVerdict = "error";
+      reasons.push(`图片：${r.reason}`);
+    }
+  }
+
+  const finalVerdict: AiVerdict =
+    ai.verdict === "uncertain" || ai.verdict === "error" ? ai.verdict : imgVerdict;
+  const status = finalVerdict === "approved" ? "approved" : "pending";
+
+  const imageUrls = saved.map((s) => s.url);
+
   const post = await prisma.post.create({
     data: {
       content,
       author,
       target,
+      tag,
       images: JSON.stringify(imageUrls),
       status,
       source: "web",
       visitorId,
-      aiVerdict: ai.verdict,
-      aiReason: ai.reason,
+      aiVerdict: finalVerdict,
+      aiReason: reasons.length > 0 ? reasons.join("；").slice(0, 200) : "正常",
     },
   });
 

@@ -58,22 +58,94 @@ type Announcement = {
   createdAt: string;
 };
 
+type Stats = {
+  totals: {
+    posts: number;
+    pending: number;
+    approved: number;
+    rejected: number;
+    comments: number;
+    likes: number;
+    today: number;
+    week: number;
+  };
+  daily: Array<{ date: string; count: number }>;
+  sources: Array<{ name: string; count: number }>;
+  tags: Array<{ name: string; count: number }>;
+  logs: Array<{
+    id: number;
+    action: string;
+    postId: number | null;
+    detail: string | null;
+    createdAt: string;
+  }>;
+};
+
+const TABS = ["stats", "pending", "approved", "rejected", "comments", "words", "announcements"] as const;
+
+const TAB_LABELS: Record<string, string> = {
+  stats: "统计",
+  pending: "待审",
+  approved: "已通过",
+  rejected: "已拒绝",
+  comments: "评论",
+  words: "词库",
+  announcements: "公告",
+};
+
+function DistBars({
+  title,
+  data,
+  color,
+}: {
+  title: string;
+  data: Array<{ name: string; count: number }>;
+  color: string;
+}) {
+  const max = Math.max(...data.map((d) => d.count), 1);
+  return (
+    <div>
+      <h2 className="font-serif text-lg text-[var(--color-ink)] mb-3">{title}</h2>
+      <div className="bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-5 space-y-3">
+        {data.length === 0 && (
+          <div className="text-xs text-[var(--color-ink-muted)]">暂无数据</div>
+        )}
+        {data.map((d) => (
+          <div key={d.name}>
+            <div className="flex justify-between text-xs text-[var(--color-ink-muted)] mb-1">
+              <span>{d.name}</span>
+              <span className="tabular-nums">{d.count}</span>
+            </div>
+            <div className="h-2 bg-[var(--color-paper)] rounded-full overflow-hidden">
+              <div
+                className={`h-full ${color} rounded-full`}
+                style={{ width: `${(d.count / max) * 100}%` }}
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
-  const [tab, setTab] = useState<"pending" | "approved" | "rejected" | "comments" | "words" | "announcements">("pending");
+  const [tab, setTab] = useState<(typeof TABS)[number]>("pending");
   const [posts, setPosts] = useState<Post[]>([]);
   const [comments, setComments] = useState<Comment[]>([]);
   const [words, setWords] = useState<Word[]>([]);
   const [newWord, setNewWord] = useState("");
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [newAnnouncement, setNewAnnouncement] = useState("");
+  const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
-    if (t && ["pending", "approved", "rejected", "comments", "words", "announcements"].includes(t)) {
-      setTab(t as typeof tab);
+    if (t && (TABS as readonly string[]).includes(t)) {
+      setTab(t as (typeof TABS)[number]);
     }
   }, []);
 
@@ -130,11 +202,22 @@ export default function AdminPage() {
     setAnnouncements(data.items ?? []);
   }
 
+  async function loadStats() {
+    const res = await fetch("/api/admin/stats");
+    if (res.status === 401) {
+      router.replace("/admin/login");
+      return;
+    }
+    const data = await res.json();
+    setStats(data);
+  }
+
   useEffect(() => {
     if (!authed) return;
     if (tab === "words") loadWords();
     else if (tab === "comments") loadComments("approved");
     else if (tab === "announcements") loadAnnouncements();
+    else if (tab === "stats") loadStats();
     else loadPosts(tab);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, authed]);
@@ -227,13 +310,13 @@ export default function AdminPage() {
   }
 
   if (authed === null) {
-    return <div className="max-w-5xl mx-auto px-6 py-12 text-[var(--color-ink-muted)]">…</div>;
+    return <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 text-[var(--color-ink-muted)]">…</div>;
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
+    <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
       <div className="flex items-center justify-between mb-8">
-        <h1 className="font-serif text-3xl text-[var(--color-ink)]">管理后台</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl text-[var(--color-ink)]">管理后台</h1>
         <button
           onClick={logout}
           className="text-sm text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
@@ -243,22 +326,107 @@ export default function AdminPage() {
       </div>
 
       <div className="flex items-center gap-1 p-1 bg-[var(--color-paper-soft)] rounded-full border border-[var(--color-line)]/60 mb-8 w-fit text-sm flex-wrap">
-        {(["pending", "approved", "rejected", "comments", "words", "announcements"] as const).map((k) => (
+        {TABS.map((k) => (
           <button
             key={k}
             onClick={() => setTab(k)}
-            className={`px-4 py-1.5 rounded-full transition-colors ${
+            className={`px-3 sm:px-4 py-1.5 rounded-full transition-colors ${
               tab === k
                 ? "bg-[var(--color-paper)] text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
                 : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-soft)]"
             }`}
           >
-            {k === "pending" ? "待审" : k === "approved" ? "已通过" : k === "rejected" ? "已拒绝" : k === "comments" ? "评论" : k === "words" ? "词库" : "公告"}
+            {TAB_LABELS[k]}
           </button>
         ))}
       </div>
 
-      {tab === "announcements" ? (
+      {tab === "stats" ? (
+        !stats ? (
+          <div className="text-[var(--color-ink-muted)] text-sm">…</div>
+        ) : (
+          <div className="space-y-8">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              {[
+                { label: "帖子总数", value: stats.totals.posts },
+                { label: "待审核", value: stats.totals.pending },
+                { label: "已通过", value: stats.totals.approved },
+                { label: "已拒绝", value: stats.totals.rejected },
+                { label: "评论总数", value: stats.totals.comments },
+                { label: "点赞总数", value: stats.totals.likes },
+                { label: "今日新投稿", value: stats.totals.today },
+                { label: "近 7 天投稿", value: stats.totals.week },
+              ].map((c) => (
+                <div
+                  key={c.label}
+                  className="bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-4"
+                >
+                  <div className="text-2xl font-serif text-[var(--color-ink)] tabular-nums">
+                    {c.value}
+                  </div>
+                  <div className="text-xs text-[var(--color-ink-muted)] mt-1">{c.label}</div>
+                </div>
+              ))}
+            </div>
+
+            <div>
+              <h2 className="font-serif text-lg text-[var(--color-ink)] mb-3">近 14 天投稿</h2>
+              <div className="flex items-end gap-1.5 h-36 bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-4">
+                {stats.daily.map((d) => {
+                  const max = Math.max(...stats.daily.map((x) => x.count), 1);
+                  return (
+                    <div
+                      key={d.date}
+                      title={`${d.date}：${d.count} 条`}
+                      className="flex-1 flex flex-col items-center justify-end h-full gap-1.5"
+                    >
+                      <span className="text-[10px] text-[var(--color-ink-muted)] tabular-nums">
+                        {d.count > 0 ? d.count : ""}
+                      </span>
+                      <div
+                        className="w-full rounded-t-[3px] bg-[var(--color-vermilion)]/60 min-h-[2px]"
+                        style={{ height: `${Math.max((d.count / max) * 100, 1)}%` }}
+                      />
+                      <span className="text-[10px] text-[var(--color-ink-muted)] whitespace-nowrap">
+                        {d.date.slice(5)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-6">
+              <DistBars title="来源分布" data={stats.sources} color="bg-[var(--color-moss)]/70" />
+              <DistBars title="标签分布" data={stats.tags} color="bg-[var(--color-vermilion)]/60" />
+            </div>
+
+            <div>
+              <h2 className="font-serif text-lg text-[var(--color-ink)] mb-3">最近操作</h2>
+              <div className="bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-5 space-y-2">
+                {stats.logs.length === 0 && (
+                  <div className="text-xs text-[var(--color-ink-muted)]">暂无记录</div>
+                )}
+                {stats.logs.map((l) => (
+                  <div
+                    key={l.id}
+                    className="flex items-center justify-between text-xs text-[var(--color-ink-muted)]"
+                  >
+                    <span>
+                      {l.action}
+                      {l.postId !== null ? ` · 帖子 #${l.postId}` : ""}
+                      {l.detail ? ` · ${l.detail}` : ""}
+                    </span>
+                    <span className="tabular-nums">
+                      {new Date(l.createdAt).toLocaleString("zh-CN")}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )
+      ) : tab === "announcements" ? (
         <div>
           <form onSubmit={addAnnouncement} className="flex gap-2 mb-6">
             <input
@@ -287,12 +455,12 @@ export default function AdminPage() {
                 <p className="text-sm leading-relaxed text-[var(--color-ink)] whitespace-pre-wrap mb-3">
                   {a.content}
                 </p>
-                <div className="flex items-center justify-between text-xs text-[var(--color-ink-muted)]">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between text-xs text-[var(--color-ink-muted)]">
                   <span>
                     {new Date(a.createdAt).toLocaleString("zh-CN")} ·{" "}
                     {a.active ? "展示中" : "已下线"}
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => actAnnouncement(a.id, "toggle")}
                       className="px-3 py-1 rounded-full bg-[var(--color-moss)]/10 text-[var(--color-moss)] hover:bg-[var(--color-moss)]/20 transition-colors"
@@ -366,7 +534,7 @@ export default function AdminPage() {
                   {c.name ?? "匿名"} · 帖子 #{c.postId} ·{" "}
                   {new Date(c.createdAt).toLocaleString("zh-CN")}
                 </span>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <AiBadge verdict={c.aiVerdict} reason={c.aiReason} />
                   <button
                     onClick={() => {
@@ -421,13 +589,13 @@ export default function AdminPage() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-center justify-between text-xs text-[var(--color-ink-muted)]">
-                  <span className="flex items-center gap-2">
+                <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between text-xs text-[var(--color-ink-muted)]">
+                  <span className="flex items-center gap-2 flex-wrap">
                     {p.author ?? "匿名"} · {p.source} ·{" "}
                     {new Date(p.createdAt).toLocaleString("zh-CN")}
                     <AiBadge verdict={p.aiVerdict} reason={p.aiReason} />
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     {p.status === "approved" && (
                       <button
                         onClick={() => togglePin(p.id, p.pinned)}

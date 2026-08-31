@@ -12,6 +12,7 @@ model Post {
   content   String
   author    String?
   target    String?
+  tag       String?
   images    String   @default("[]")
   status    String   @default("pending")
   source    String   @default("web")
@@ -26,6 +27,7 @@ model Post {
 
   @@index([status, createdAt])
   @@index([status, pinned])
+  @@index([status, tag])
   @@index([openId, createdAt])
   @@index([visitorId])
 }

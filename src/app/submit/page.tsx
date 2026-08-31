@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { getVisitorId } from "@/components/NotificationBell";
+import { TAGS } from "@/lib/tags";
 
 export default function SubmitPage() {
   const router = useRouter();
@@ -10,6 +11,7 @@ export default function SubmitPage() {
   const [author, setAuthor] = useState("");
   const [target, setTarget] = useState("");
   const [anonymous, setAnonymous] = useState(false);
+  const [tag, setTag] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export default function SubmitPage() {
     fd.set("visitorId", getVisitorId());
     if (!anonymous && author.trim()) fd.set("author", author.trim());
     if (target.trim()) fd.set("target", target.trim());
+    if (tag) fd.set("tag", tag);
     files.forEach((f) => fd.append("images", f));
     try {
       const res = await fetch("/api/posts", { method: "POST", body: fd });
@@ -54,7 +57,7 @@ export default function SubmitPage() {
 
   if (done) {
     return (
-      <div className="max-w-2xl mx-auto px-6 py-24 text-center">
+      <div className="max-w-2xl mx-auto px-4 sm:px-6 py-24 text-center">
         <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[var(--color-vermilion-soft)] text-[var(--color-vermilion-deep)] mb-6">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-6 h-6">
             <path d="M5 12l4 4L19 6" strokeLinecap="round" strokeLinejoin="round" />
@@ -73,6 +76,7 @@ export default function SubmitPage() {
               setTarget("");
               setFiles([]);
               setAnonymous(false);
+              setTag("");
             }}
             className="px-5 py-2 rounded-full border border-[var(--color-line)] hover:border-[var(--color-ink-muted)] text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] transition-colors"
           >
@@ -90,7 +94,7 @@ export default function SubmitPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-12 sm:py-16">
+    <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
       <div className="mb-10">
         <h1 className="font-serif text-3xl sm:text-4xl text-[var(--color-ink)] mb-3">写一封</h1>
         <p className="text-[var(--color-ink-soft)] text-sm">想写给谁，想说什么，写下来就好。</p>
@@ -157,6 +161,26 @@ export default function SubmitPage() {
           />
           完全匿名（不会留下任何署名信息）
         </label>
+
+        <div>
+          <label className="block text-xs text-[var(--color-ink-muted)] mb-2">分类（可选）</label>
+          <div className="flex items-center gap-1 p-1 bg-[var(--color-paper-soft)] rounded-full border border-[var(--color-line)]/60 w-fit text-sm flex-wrap">
+            {["", ...TAGS].map((t) => (
+              <button
+                key={t || "none"}
+                type="button"
+                onClick={() => setTag(t)}
+                className={`px-4 py-1.5 rounded-full transition-colors ${
+                  tag === t
+                    ? "bg-[var(--color-paper)] text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
+                    : "text-[var(--color-ink-muted)] hover:text-[var(--color-ink-soft)]"
+                }`}
+              >
+                {t || "不分类"}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div>
           <label className="block text-xs text-[var(--color-ink-muted)] mb-2">

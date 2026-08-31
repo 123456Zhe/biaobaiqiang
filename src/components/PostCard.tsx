@@ -8,6 +8,7 @@ type Post = {
   content: string;
   author: string | null;
   target: string | null;
+  tag?: string | null;
   images: string;
   likeCount: number;
   liked?: boolean;
@@ -64,6 +65,11 @@ export function PostCard({ post, onLike }: { post: Post; onLike: (id: number) =>
             <path d="M12 17v5M9 4h6l1 7 2 2v2H6v-2l2-2 1-7z" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
           置顶
+        </div>
+      )}
+      {post.tag && (
+        <div className="inline-flex items-center ml-1.5 mb-2 px-2 py-0.5 rounded-full bg-[var(--color-paper)] border border-[var(--color-line)]/60 text-[var(--color-ink-soft)] text-xs font-serif">
+          {post.tag}
         </div>
       )}
       {post.target && (
