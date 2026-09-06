@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { safeJsonArray } from "@/lib/format";
 import { checkText } from "@/lib/dfa";
 import { moderateImage, moderateText, type AiVerdict } from "@/lib/ai-moderation";
 import { allow } from "@/lib/ratelimit";
@@ -87,8 +88,8 @@ export async function GET(request: NextRequest) {
     take: 5,
   });
   return Response.json({
-    items: items.map((p) => ({ ...p, liked: likedSet.has(p.id) })),
-    pinned: pinned.map((p) => ({ ...p, liked: likedSet.has(p.id) })),
+    items: items.map((p) => ({ ...p, imageList: safeJsonArray(p.images), liked: likedSet.has(p.id) })),
+    pinned: pinned.map((p) => ({ ...p, imageList: safeJsonArray(p.images), liked: likedSet.has(p.id) })),
     announcements,
     nextCursor: hasMore ? items[items.length - 1].id : null,
   });
