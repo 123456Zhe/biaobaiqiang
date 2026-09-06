@@ -40,6 +40,7 @@ const TYPE_META: Record<string, { icon: string; color: string }> = {
   approved: { icon: "✓", color: "var(--color-moss)" },
   rejected: { icon: "✕", color: "var(--color-amber)" },
   pending: { icon: "✎", color: "var(--color-vermilion)" },
+  pending_comment: { icon: "💬", color: "var(--color-vermilion)" },
 };
 
 export function NotificationBell() {
@@ -152,8 +153,9 @@ export function NotificationBell() {
     setUnread((u) => Math.max(0, u - (n.read ? 0 : 1)));
     setOpen(false);
     if (n.type === "approved" && n.postId) router.push(`/post/${n.postId}`);
-    else if (n.type === "pending") router.push("/admin");
-    else if (n.type === "rejected") router.push("/notifications");
+    else if (n.type === "pending" || n.type === "pending_comment")
+      router.push("/admin?tab=pending");
+    else if (n.type === "rejected") router.push("/mine");
   }
 
   return (

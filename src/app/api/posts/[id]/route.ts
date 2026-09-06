@@ -32,6 +32,19 @@ export async function GET(
     where: { postId: numId, status: "approved" },
     orderBy: { createdAt: "asc" },
   });
+  const likedCommentIds = validVisitor
+    ? new Set(
+        (
+          await prisma.commentLike.findMany({
+            where: {
+              visitorId: validVisitor,
+              commentId: { in: comments.map((c) => c.id) },
+            },
+            select: { commentId: true },
+          })
+        ).map((l) => l.commentId),
+      )
+    : new Set<number>();
   return Response.json({
     post: { ...post, imageList: safeJsonArray(post.images), liked },
     comments: comments.map((c) => ({
@@ -40,6 +53,10 @@ export async function GET(
       content: c.content,
       createdAt: c.createdAt,
       mine: !!validVisitor && c.visitorId === validVisitor,
+      replyToId: c.replyToId,
+      replyToName: c.replyToName,
+      likeCount: c.likeCount,
+      liked: likedCommentIds.has(c.id),
     })),
   });
 }

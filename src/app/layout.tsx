@@ -54,6 +54,12 @@ export default function RootLayout({
                 墙上
               </Link>
               <Link
+                href="/mine"
+                className="px-3 py-2 rounded-full text-[var(--color-ink-soft)] hover:text-[var(--color-ink)] hover:bg-[var(--color-paper-soft)] transition-colors"
+              >
+                我的
+              </Link>
+              <Link
                 href="/submit"
                 className="px-4 py-2 rounded-full bg-[var(--color-vermilion)] text-[var(--color-paper)] hover:bg-[var(--color-vermilion-deep)] transition-colors"
               >

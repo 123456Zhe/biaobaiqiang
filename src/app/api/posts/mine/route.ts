@@ -10,7 +10,8 @@ export async function GET(request: NextRequest) {
   if (!visitorId || !/^[a-zA-Z0-9-]{8,64}$/.test(visitorId)) {
     return Response.json({ error: "无效访客标识" }, { status: 400 });
   }
-  const items = await prisma.post.findMany({
+  const [items, comments] = await Promise.all([
+    prisma.post.findMany({
     where: { visitorId },
     orderBy: { createdAt: "desc" },
     take: 50,
@@ -20,6 +21,19 @@ export async function GET(request: NextRequest) {
       status: true,
       createdAt: true,
     },
-  });
-  return Response.json({ items });
+  }),
+  prisma.comment.findMany({
+    where: { visitorId },
+    orderBy: { createdAt: "desc" },
+    take: 50,
+    select: {
+      id: true,
+      postId: true,
+      content: true,
+      status: true,
+      createdAt: true,
+    },
+  }),
+  ]);
+  return Response.json({ items, comments });
 }

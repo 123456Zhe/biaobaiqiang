@@ -43,18 +43,31 @@ model Like {
 }
 
 model Comment {
-  id        Int      @id @default(autoincrement())
-  postId    Int
-  name      String?
-  content   String
-  status    String   @default("pending")
-  visitorId String?
-  aiVerdict String?
-  aiReason  String?
-  createdAt DateTime @default(now())
+  id          Int      @id @default(autoincrement())
+  postId      Int
+  name        String?
+  content     String
+  status      String   @default("pending")
+  visitorId   String?
+  replyToId   Int?
+  replyToName String?
+  likeCount   Int      @default(0)
+  aiVerdict   String?
+  aiReason    String?
+  createdAt   DateTime @default(now())
 
   @@index([postId, status])
   @@index([status, createdAt])
+  @@index([visitorId])
+}
+
+model CommentLike {
+  id        Int      @id @default(autoincrement())
+  commentId Int
+  visitorId String
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, visitorId])
   @@index([visitorId])
 }
 

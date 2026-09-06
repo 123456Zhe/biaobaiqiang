@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
+import { createNotification, truncate } from "@/lib/notifications";
 import { checkText } from "@/lib/dfa";
 import { moderateText } from "@/lib/ai-moderation";
 import { allow } from "@/lib/ratelimit";
@@ -35,6 +36,7 @@ export async function POST(
     name?: string;
     content?: string;
     visitorId?: string;
+    replyToId?: number;
   };
   const name = (body.name ?? "").trim().slice(0, 20) || null;
   const content = (body.content ?? "").trim();
@@ -73,6 +75,18 @@ export async function POST(
   }
   const status = ai.verdict === "approved" ? "approved" : "pending";
 
+  let replyToName: string | null = null;
+  if (body.replyToId !== undefined && body.replyToId !== null) {
+    const target = await prisma.comment.findFirst({
+      where: { id: Number(body.replyToId), postId: numId, status: "approved" },
+      select: { id: true, name: true },
+    });
+    if (!target) {
+      return Response.json({ error: "回复的评论不存在" }, { status: 400 });
+    }
+    replyToName = target.name;
+  }
+
   const comment = await prisma.comment.create({
     data: {
       postId: numId,
@@ -80,9 +94,23 @@ export async function POST(
       content,
       status,
       visitorId,
+      replyToId:
+        body.replyToId !== undefined && body.replyToId !== null
+          ? Number(body.replyToId)
+          : null,
+      replyToName,
       aiVerdict: ai.verdict,
       aiReason: ai.reason,
     },
   });
+  if (status === "pending") {
+    await createNotification({
+      audience: "admin",
+      type: "pending_comment",
+      postId: numId,
+      title: "有新评论等待审核",
+      body: truncate(content, 60),
+    });
+  }
   return Response.json({ ok: true, id: comment.id, status });
 }

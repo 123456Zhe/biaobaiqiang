@@ -21,6 +21,10 @@ type Comment = {
   content: string;
   createdAt: string;
   mine: boolean;
+  replyToId: number | null;
+  replyToName: string | null;
+  likeCount: number;
+  liked: boolean;
 };
 
 function timeAgo(d: string | Date) {
@@ -48,6 +52,8 @@ export default function PostPage() {
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [replyTo, setReplyTo] = useState<Comment | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     fetch(`/api/posts/${id}`, { headers: { "x-visitor-id": getVisitorId() } })
@@ -99,12 +105,16 @@ export default function PostPage() {
         name: name.trim(),
         content: content.trim(),
         visitorId: getVisitorId(),
+        replyToId: replyTo?.id ?? null,
       }),
     });
     const data = await res.json();
     if (res.ok) {
       setContent("");
-      setMsg("评论已发布。");
+      setReplyTo(null);
+      setMsg(
+        data.status === "pending" ? "评论已提交，待审核后展示。" : "评论已发布。",
+      );
       const r = await fetch(`/api/posts/${id}`, {
         headers: { "x-visitor-id": getVisitorId() },
       });
@@ -116,6 +126,49 @@ export default function PostPage() {
       setMsg(data.error ?? "提交失败");
     }
     setSubmitting(false);
+  }
+
+  async function handleCommentLike(c: Comment) {
+    if (c.liked) return;
+    setComments((p) =>
+      p.map((x) =>
+        x.id === c.id
+          ? { ...x, liked: true, likeCount: x.likeCount + 1 }
+          : x,
+      ),
+    );
+    await fetch(`/api/comments/${c.id}/like`, {
+      method: "POST",
+      headers: { "x-visitor-id": getVisitorId() },
+    }).catch(() => null);
+  }
+
+  function handleShare() {
+    setSharing(true);
+    try {
+      const el = document.getElementById("share-card");
+      if (!el) return;
+      const xml = new XMLSerializer().serializeToString(el);
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="750" height="1000"><foreignObject width="100%" height="100%">${xml}</foreignObject></svg>`;
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 750;
+        canvas.height = 1000;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+        ctx.fillStyle = "#faf7f1";
+        ctx.fillRect(0, 0, 750, 1000);
+        ctx.drawImage(img, 0, 0, 750, 1000);
+        const a = document.createElement("a");
+        a.download = `whitewall-${id}.png`;
+        a.href = canvas.toDataURL("image/png");
+        a.click();
+      };
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+    } finally {
+      setTimeout(() => setSharing(false), 800);
+    }
   }
 
   async function handleDelete(cid: number) {
@@ -180,8 +233,16 @@ export default function PostPage() {
           <span className="text-xs text-[var(--color-ink-muted)]">
             {post.author ?? "匿名"} · {timeAgo(post.createdAt)}
           </span>
-          <button
-            onClick={handleLike}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleShare}
+              disabled={sharing}
+              className="text-xs px-3 py-1.5 rounded-full border border-[var(--color-line)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] transition-colors disabled:opacity-40"
+            >
+              {sharing ? "生成中…" : "分享卡片"}
+            </button>
+            <button
+              onClick={handleLike}
             aria-label="点赞"
             className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[var(--color-line)] transition-colors ${
               liked ? "text-[var(--color-vermilion)]" : "text-[var(--color-ink-muted)] hover:text-[var(--color-vermilion)]"
@@ -197,9 +258,57 @@ export default function PostPage() {
               <path d="M12 21s-7-4.5-9.5-9.5C.8 7.8 3.4 4 7 4c2 0 3.5 1 5 3 1.5-2 3-3 5-3 3.6 0 6.2 3.8 4.5 7.5C19 16.5 12 21 12 21z" />
             </svg>
             <span className="text-xs tabular-nums">{post.likeCount}</span>
-          </button>
+            </button>
+          </div>
         </div>
       </article>
+
+      <div style={{ position: "absolute", left: -9999, top: 0 }} aria-hidden>
+        <div
+          id="share-card"
+          style={{
+            width: 750,
+            minHeight: 1000,
+            background: "#faf7f1",
+            padding: 64,
+            fontFamily: "serif",
+            color: "#2b2620",
+          }}
+        >
+          <div style={{ fontSize: 44, marginBottom: 8 }}>
+            <span style={{ color: "#c8402a" }}>白</span>墙
+          </div>
+          <div style={{ fontSize: 22, color: "#8a8378", marginBottom: 40 }}>
+            把想说的话，轻轻贴上墙。
+          </div>
+          {post.target && (
+            <div style={{ fontSize: 24, color: "#8a8378", marginBottom: 20 }}>
+              写给 {post.target}
+            </div>
+          )}
+          <div
+            style={{
+              fontSize: 30,
+              lineHeight: 2,
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {post.content.slice(0, 500)}
+          </div>
+          <div
+            style={{
+              marginTop: 60,
+              paddingTop: 24,
+              borderTop: "1px solid #e5ddcf",
+              fontSize: 22,
+              color: "#8a8378",
+            }}
+          >
+            {post.author ?? "匿名"} · {new Date(post.createdAt).toLocaleDateString("zh-CN")} · 帖子 #{post.id}
+          </div>
+        </div>
+      </div>
 
       <section className="mt-10">
         <h2 className="font-serif text-xl text-[var(--color-ink)] mb-6">
@@ -222,9 +331,23 @@ export default function PostPage() {
             rows={3}
             className="w-full bg-[var(--color-paper-soft)] border border-[var(--color-line)] rounded-[var(--radius-sm)] px-4 py-3 text-sm leading-relaxed focus:border-[var(--color-vermilion)] outline-none transition-colors resize-none"
           />
+          {replyTo && (
+            <div className="flex items-center justify-between text-xs bg-[var(--color-paper-soft)] border border-[var(--color-line)] rounded-[var(--radius-sm)] px-4 py-2">
+              <span className="text-[var(--color-ink-soft)] truncate">
+                回复 @{replyTo.name ?? "匿名"}：{replyTo.content.slice(0, 30)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setReplyTo(null)}
+                className="ml-2 text-[var(--color-ink-muted)] hover:text-[var(--color-crimson)] shrink-0"
+              >
+                取消
+              </button>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-xs text-[var(--color-ink-muted)]">
-              {msg ?? "发布后立即展示，违规内容将被删除"}
+              {msg ?? "发布后展示，存疑内容需审核"}
             </span>
             <button
               type="submit"
@@ -261,9 +384,28 @@ export default function PostPage() {
                     </button>
                   )}
                 </div>
+                {c.replyToName !== null && c.replyToName !== undefined && (
+                  <div className="text-xs text-[var(--color-ink-muted)] mb-2">
+                    回复 <span className="text-[var(--color-vermilion-deep)]">@{c.replyToName ?? "匿名"}</span>
+                  </div>
+                )}
                 <p className="text-sm leading-relaxed text-[var(--color-ink)] whitespace-pre-wrap break-words">
                   {c.content}
                 </p>
+                <div className="mt-3 flex items-center gap-3 text-xs text-[var(--color-ink-muted)]">
+                  <button
+                    onClick={() => handleCommentLike(c)}
+                    className={`transition-colors ${c.liked ? "text-[var(--color-vermilion)]" : "hover:text-[var(--color-vermilion)]"}`}
+                  >
+                    ♥ {c.likeCount > 0 ? c.likeCount : "赞"}
+                  </button>
+                  <button
+                    onClick={() => setReplyTo(c)}
+                    className="hover:text-[var(--color-ink)] transition-colors"
+                  >
+                    回复
+                  </button>
+                </div>
               </li>
             ))}
           </ul>

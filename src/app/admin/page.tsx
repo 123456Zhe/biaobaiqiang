@@ -141,6 +141,10 @@ export default function AdminPage() {
   const [newAnnouncement, setNewAnnouncement] = useState("");
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(false);
+  const [selPosts, setSelPosts] = useState<Set<number>>(new Set());
+  const [selComments, setSelComments] = useState<Set<number>>(new Set());
+  const [commentStatus, setCommentStatus] = useState("pending");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
@@ -158,9 +162,12 @@ export default function AdminPage() {
       });
   }, [router]);
 
-  async function loadPosts(status: string) {
+  async function loadPosts(status: string, q = "") {
     setLoading(true);
-    const res = await fetch(`/api/admin/posts?status=${status}`);
+    setSelPosts(new Set());
+    const res = await fetch(
+      `/api/admin/posts?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+    );
     if (res.status === 401) {
       router.replace("/admin/login");
       return;
@@ -180,9 +187,12 @@ export default function AdminPage() {
     setWords(data.items ?? []);
   }
 
-  async function loadComments(status: string) {
+  async function loadComments(status: string, q = "") {
     setLoading(true);
-    const res = await fetch(`/api/admin/comments?status=${status}`);
+    setSelComments(new Set());
+    const res = await fetch(
+      `/api/admin/comments?status=${status}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+    );
     if (res.status === 401) {
       router.replace("/admin/login");
       return;
@@ -215,7 +225,7 @@ export default function AdminPage() {
   useEffect(() => {
     if (!authed) return;
     if (tab === "words") loadWords();
-    else if (tab === "comments") loadComments("approved");
+    else if (tab === "comments") loadComments(commentStatus);
     else if (tab === "announcements") loadAnnouncements();
     else if (tab === "stats") loadStats();
     else loadPosts(tab);
@@ -270,6 +280,54 @@ export default function AdminPage() {
       body: JSON.stringify({ action }),
     });
     if (res.ok) loadAnnouncements();
+  }
+
+  async function batchPosts(action: string) {
+    if (selPosts.size === 0) return;
+    if (!confirm(`确定对 ${selPosts.size} 条执行 ${action}？`)) return;
+    const res = await fetch("/api/admin/posts", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [...selPosts], action }),
+    });
+    if (res.ok) {
+      const done = new Set(selPosts);
+      setPosts((p) => p.filter((x) => !done.has(x.id)));
+      setSelPosts(new Set());
+    }
+  }
+
+  async function batchComments(action: string) {
+    if (selComments.size === 0) return;
+    if (!confirm(`确定对 ${selComments.size} 条执行 ${action}？`)) return;
+    const res = await fetch("/api/admin/comments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [...selComments], action }),
+    });
+    if (res.ok) {
+      const done = new Set(selComments);
+      setComments((p) => p.filter((x) => !done.has(x.id)));
+      setSelComments(new Set());
+    }
+  }
+
+  function exportCsv(kind: "posts" | "comments") {
+    const rows = (
+      kind === "posts" ? (posts as unknown as Record<string, unknown>[]) : (comments as unknown as Record<string, unknown>[])
+    ).map((x) =>
+      [x.id, x.content, x.status, x.createdAt]
+        .map((v) => `"${String(v ?? "").replace(/"/g, '""')}"`)
+        .join(","),
+    );
+    const blob = new Blob([`\uFEFFid,content,status,createdAt\n${rows.join("\n")}`], {
+      type: "text/csv;charset=utf-8",
+    });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${kind}-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(a.href);
   }
 
   async function actComment(id: number, action: string) {
@@ -517,6 +575,73 @@ export default function AdminPage() {
         </div>
       ) : tab === "comments" ? (
         <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
+            <div className="flex items-center gap-1 p-1 bg-[var(--color-paper-soft)] rounded-full border border-[var(--color-line)]/60 text-xs">
+              {(["pending", "approved", "rejected"] as const).map((st) => (
+                <button
+                  key={st}
+                  onClick={() => {
+                    setCommentStatus(st);
+                    loadComments(st, search);
+                  }}
+                  className={`px-3 py-1 rounded-full transition-colors ${
+                    commentStatus === st
+                      ? "bg-[var(--color-paper)] text-[var(--color-ink)] shadow-[var(--shadow-soft)]"
+                      : "text-[var(--color-ink-muted)]"
+                  }`}
+                >
+                  {st === "pending" ? "待审" : st === "approved" ? "已通过" : "已拒绝"}
+                </button>
+              ))}
+            </div>
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                loadComments(commentStatus, search);
+              }}
+              className="flex gap-2 flex-1 min-w-[200px]"
+            >
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="搜索评论内容、昵称…"
+                className="flex-1 bg-[var(--color-paper-soft)] border border-[var(--color-line)] rounded-full px-4 py-1.5 text-xs focus:border-[var(--color-vermilion)] outline-none"
+              />
+              <button
+                type="submit"
+                className="px-4 py-1.5 rounded-full bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 text-xs hover:text-[var(--color-ink)]"
+              >
+                搜索
+              </button>
+            </form>
+            <button
+              onClick={() => exportCsv("comments")}
+              className="px-3 py-1.5 rounded-full text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] border border-[var(--color-line)]/60"
+            >
+              导出 CSV
+            </button>
+          </div>
+          {selComments.size > 0 && (
+            <div className="flex items-center gap-2 text-xs bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] px-4 py-2.5 sticky top-16 z-10">
+              <span className="text-[var(--color-ink-soft)]">已选 {selComments.size} 条</span>
+              <button onClick={() => batchComments("approve")} className="px-3 py-1 rounded-full bg-[var(--color-moss)]/10 text-[var(--color-moss)]">通过</button>
+              <button onClick={() => batchComments("reject")} className="px-3 py-1 rounded-full bg-[var(--color-amber)]/10 text-[var(--color-amber)]">拒绝</button>
+              <button onClick={() => batchComments("delete")} className="px-3 py-1 rounded-full text-[var(--color-crimson)]">删除</button>
+              <button onClick={() => setSelComments(new Set())} className="ml-auto text-[var(--color-ink-muted)]">取消</button>
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-xs text-[var(--color-ink-muted)]">
+            <input
+              type="checkbox"
+              checked={comments.length > 0 && selComments.size === comments.length}
+              onChange={(e) =>
+                setSelComments(
+                  e.target.checked ? new Set(comments.map((c) => c.id)) : new Set(),
+                )
+              }
+            />
+            全选
+          </label>
           {loading && <div className="text-[var(--color-ink-muted)] text-sm">…</div>}
           {!loading && comments.length === 0 && (
             <div className="text-center py-20 text-[var(--color-ink-muted)] text-sm">暂无评论</div>
@@ -524,26 +649,57 @@ export default function AdminPage() {
           {comments.map((c) => (
             <div
               key={c.id}
-              className="bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-5"
+              className="bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-5 flex gap-3"
             >
-              <p className="text-sm leading-relaxed text-[var(--color-ink)] whitespace-pre-wrap mb-3">
-                {c.content}
-              </p>
-              <div className="flex items-center justify-between text-xs text-[var(--color-ink-muted)]">
-                <span>
-                  {c.name ?? "匿名"} · 帖子 #{c.postId} ·{" "}
-                  {new Date(c.createdAt).toLocaleString("zh-CN")}
-                </span>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <AiBadge verdict={c.aiVerdict} reason={c.aiReason} />
-                  <button
-                    onClick={() => {
-                      if (confirm("确定删除？")) actComment(c.id, "delete");
-                    }}
-                    className="px-3 py-1 rounded-full text-[var(--color-ink-muted)] hover:text-[var(--color-crimson)] transition-colors"
-                  >
-                    删除
-                  </button>
+              <input
+                type="checkbox"
+                checked={selComments.has(c.id)}
+                onChange={(e) =>
+                  setSelComments((prev) => {
+                    const n = new Set(prev);
+                    if (e.target.checked) n.add(c.id);
+                    else n.delete(c.id);
+                    return n;
+                  })
+                }
+                className="mt-1 shrink-0"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm leading-relaxed text-[var(--color-ink)] whitespace-pre-wrap mb-3">
+                  {c.content}
+                </p>
+                <div className="flex items-center justify-between text-xs text-[var(--color-ink-muted)] flex-wrap gap-2">
+                  <span>
+                    {c.name ?? "匿名"} · 帖子 #{c.postId} ·{" "}
+                    {new Date(c.createdAt).toLocaleString("zh-CN")}
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <AiBadge verdict={c.aiVerdict} reason={c.aiReason} />
+                    {commentStatus === "pending" && (
+                      <>
+                        <button
+                          onClick={() => actComment(c.id, "approve")}
+                          className="px-3 py-1 rounded-full bg-[var(--color-moss)]/10 text-[var(--color-moss)]"
+                        >
+                          通过
+                        </button>
+                        <button
+                          onClick={() => actComment(c.id, "reject")}
+                          className="px-3 py-1 rounded-full bg-[var(--color-amber)]/10 text-[var(--color-amber)]"
+                        >
+                          拒绝
+                        </button>
+                      </>
+                    )}
+                    <button
+                      onClick={() => {
+                        if (confirm("确定删除？")) actComment(c.id, "delete");
+                      }}
+                      className="px-3 py-1 rounded-full text-[var(--color-ink-muted)] hover:text-[var(--color-crimson)] transition-colors"
+                    >
+                      删除
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -551,6 +707,57 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="space-y-3">
+          {(tab === "pending" || tab === "approved" || tab === "rejected") && (
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  loadPosts(tab, search);
+                }}
+                className="flex gap-2 flex-1 min-w-[200px]"
+              >
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="搜索内容、作者、表白对象…"
+                  className="flex-1 bg-[var(--color-paper-soft)] border border-[var(--color-line)] rounded-full px-4 py-1.5 text-xs focus:border-[var(--color-vermilion)] outline-none"
+                />
+                <button
+                  type="submit"
+                  className="px-4 py-1.5 rounded-full bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 text-xs hover:text-[var(--color-ink)]"
+                >
+                  搜索
+                </button>
+              </form>
+              <button
+                onClick={() => exportCsv("posts")}
+                className="px-3 py-1.5 rounded-full text-xs text-[var(--color-ink-muted)] hover:text-[var(--color-ink)] border border-[var(--color-line)]/60"
+              >
+                导出 CSV
+              </button>
+            </div>
+          )}
+          {selPosts.size > 0 && (
+            <div className="flex items-center gap-2 text-xs bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] px-4 py-2.5 sticky top-16 z-10">
+              <span className="text-[var(--color-ink-soft)]">已选 {selPosts.size} 条</span>
+              <button onClick={() => batchPosts("approve")} className="px-3 py-1 rounded-full bg-[var(--color-moss)]/10 text-[var(--color-moss)]">通过</button>
+              <button onClick={() => batchPosts("reject")} className="px-3 py-1 rounded-full bg-[var(--color-amber)]/10 text-[var(--color-amber)]">拒绝</button>
+              <button onClick={() => batchPosts("delete")} className="px-3 py-1 rounded-full text-[var(--color-crimson)]">删除</button>
+              <button onClick={() => setSelPosts(new Set())} className="ml-auto text-[var(--color-ink-muted)]">取消</button>
+            </div>
+          )}
+          <label className="flex items-center gap-2 text-xs text-[var(--color-ink-muted)]">
+            <input
+              type="checkbox"
+              checked={posts.length > 0 && selPosts.size === posts.length}
+              onChange={(e) =>
+                setSelPosts(
+                  e.target.checked ? new Set(posts.map((x) => x.id)) : new Set(),
+                )
+              }
+            />
+            全选
+          </label>
           {loading && <div className="text-[var(--color-ink-muted)] text-sm">…</div>}
           {!loading && posts.length === 0 && (
             <div className="text-center py-20 text-[var(--color-ink-muted)] text-sm">暂无</div>
@@ -566,8 +773,22 @@ export default function AdminPage() {
             return (
               <div
                 key={p.id}
-                className="bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-5"
+                className="bg-[var(--color-paper-soft)] border border-[var(--color-line)]/60 rounded-[var(--radius-card)] p-5 flex gap-3"
               >
+                <input
+                  type="checkbox"
+                  checked={selPosts.has(p.id)}
+                  onChange={(e) =>
+                    setSelPosts((prev) => {
+                      const n = new Set(prev);
+                      if (e.target.checked) n.add(p.id);
+                      else n.delete(p.id);
+                      return n;
+                    })
+                  }
+                  className="mt-1 shrink-0"
+                />
+                <div className="flex-1 min-w-0">
                 {p.target && (
                   <div className="text-xs text-[var(--color-ink-muted)] mb-2 font-serif">
                     写给 <span className="text-[var(--color-vermilion-deep)]">{p.target}</span>
@@ -633,6 +854,7 @@ export default function AdminPage() {
                       删除
                     </button>
                   </div>
+                </div>
                 </div>
               </div>
             );
