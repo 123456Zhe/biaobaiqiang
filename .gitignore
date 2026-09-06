@@ -57,3 +57,6 @@ next-env.d.ts
 # prisma local db
 *.db
 *.db-journal
+
+# AstrBot 插件独立仓库维护
+/astrbot-plugin-biaobaiqiang/

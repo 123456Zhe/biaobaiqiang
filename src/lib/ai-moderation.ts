@@ -78,7 +78,7 @@ async function callOnce(text: string): Promise<AiModerationResult> {
       body: JSON.stringify({
         model: MODEL,
         temperature: 0,
-        response_format: { type: "json_object" },
+        max_tokens: 2048,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -119,7 +119,7 @@ async function callImageOnce(
       body: JSON.stringify({
         model: VISION_MODEL,
         temperature: 0,
-        response_format: { type: "json_object" },
+        max_tokens: 2048,
         messages: [
           { role: "system", content: IMAGE_SYSTEM_PROMPT },
           {
