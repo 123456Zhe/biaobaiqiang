@@ -4,6 +4,7 @@ const API_KEY = process.env.OPENAI_API_KEY ?? "";
 const BASE_URL = (process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1").replace(/\/+$/, "");
 const MODEL = process.env.OPENAI_MODEL ?? "gpt-4o-mini";
 const VISION_MODEL = process.env.OPENAI_VISION_MODEL ?? MODEL;
+const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT ?? "";
 const TIMEOUT_MS = Number(process.env.OPENAI_MODERATION_TIMEOUT_MS ?? 15000) || 15000;
 const VISION_TIMEOUT_MS = Number(process.env.OPENAI_VISION_TIMEOUT_MS ?? 30000) || 30000;
 const RETRIES = Math.max(Number(process.env.OPENAI_MODERATION_RETRIES ?? 2) || 0, 0);
@@ -79,6 +80,7 @@ async function callOnce(text: string): Promise<AiModerationResult> {
         model: MODEL,
         temperature: 0,
         max_tokens: 2048,
+        ...(REASONING_EFFORT ? { reasoning_effort: REASONING_EFFORT } : {}),
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           {
@@ -120,6 +122,7 @@ async function callImageOnce(
         model: VISION_MODEL,
         temperature: 0,
         max_tokens: 2048,
+        ...(REASONING_EFFORT ? { reasoning_effort: REASONING_EFFORT } : {}),
         messages: [
           { role: "system", content: IMAGE_SYSTEM_PROMPT },
           {
