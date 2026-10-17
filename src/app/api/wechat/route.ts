@@ -37,7 +37,10 @@ export async function POST(request: NextRequest) {
   const timestamp = searchParams.get("timestamp") ?? "";
   const nonce = searchParams.get("nonce") ?? "";
 
-  if (TOKEN && !checkSignature({ token: TOKEN, signature, timestamp, nonce })) {
+  if (!TOKEN) {
+    return new Response("wechat token not configured", { status: 500 });
+  }
+  if (!checkSignature({ token: TOKEN, signature, timestamp, nonce })) {
     return new Response("invalid signature", { status: 403 });
   }
 

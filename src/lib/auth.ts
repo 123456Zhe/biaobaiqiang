@@ -6,6 +6,15 @@ const PASSWORD = process.env.ADMIN_PASSWORD ?? "admin123";
 const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-me";
 const MAX_AGE = 60 * 60 * 12;
 
+// 服务端撤销名单：revokeToken() 后该 session 立即失效。
+// 单实例内存实现（重启清空）；多实例部署如需共享撤销状态再换外部存储。
+const revoked = new Set<string>();
+
+export function revokeToken(token: string) {
+  const sig = token.split(".")[1];
+  if (sig) revoked.add(sig);
+}
+
 function sign(value: string) {
   return crypto.createHmac("sha256", SESSION_SECRET).update(value).digest("hex");
 }
@@ -18,6 +27,7 @@ export function makeToken() {
 export function verifyToken(token: string) {
   const [ts, sig] = token.split(".");
   if (!ts || !sig) return false;
+  if (revoked.has(sig)) return false;
   if (Date.now() - Number(ts) > MAX_AGE * 1000) return false;
   return sign(ts) === sig;
 }
