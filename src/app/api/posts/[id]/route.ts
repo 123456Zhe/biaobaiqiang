@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { safeJsonArray } from "@/lib/format";
+import { toPublicPost } from "@/lib/post-dto";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -46,7 +46,7 @@ export async function GET(
       )
     : new Set<number>();
   return Response.json({
-    post: { ...post, imageList: safeJsonArray(post.images), liked },
+    post: toPublicPost(post, liked),
     comments: comments.map((c) => ({
       id: c.id,
       name: c.name,

@@ -73,7 +73,10 @@ export function PushToggle({ compact = false }: { compact?: boolean }) {
       await fetch("/api/push/subscribe", {
         method: "DELETE",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ endpoint }),
+        body: JSON.stringify({
+          endpoint,
+          visitorId: localStorage.getItem("visitor_id"),
+        }),
       });
     }
     setState("off");

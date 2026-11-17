@@ -34,6 +34,10 @@ export async function pushTo(opts: {
   payload: PushPayload;
 }) {
   if (!ensureConfigured()) return;
+  // fail-closed：访客推送缺 visitorId 时直接不发。旧逻辑用
+  // `visitorId: opts.visitorId ?? undefined`，undefined 会让 Prisma 丢掉
+  // 该过滤条件，变成广播给全部访客订阅。
+  if (opts.audience === "visitor" && !opts.visitorId) return;
   const subs = await prisma.pushSubscription.findMany({
     where:
       opts.audience === "admin"

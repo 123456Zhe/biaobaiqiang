@@ -7,8 +7,10 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: "file:/app/data/dev.db"
-      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-admin123}"
-      SESSION_SECRET: "${SESSION_SECRET:-change-me-in-prod}"
+      # 不设公开默认值：未配置时传空串，应用启动校验会直接报错退出，
+      # 避免带着默认密钥上线。部署前务必在 .env 中设置强随机值。
+      ADMIN_PASSWORD: "${ADMIN_PASSWORD:-}"
+      SESSION_SECRET: "${SESSION_SECRET:-}"
       WECHAT_TOKEN: "${WECHAT_TOKEN:-}"
       PUBLIC_SITE_URL: "${PUBLIC_SITE_URL:-}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"

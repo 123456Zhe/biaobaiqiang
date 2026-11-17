@@ -1,9 +1,9 @@
 import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { safeJsonArray } from "@/lib/format";
+import { toPublicPost } from "@/lib/post-dto";
 import { checkText } from "@/lib/dfa";
 import { moderateImage, moderateText, type AiVerdict } from "@/lib/ai-moderation";
-import { allow } from "@/lib/ratelimit";
+import { allow, getClientIp } from "@/lib/ratelimit";
 import { seedSensitiveWords } from "@/lib/seed";
 import { isTag } from "@/lib/tags";
 import { createNotification, truncate } from "@/lib/notifications";
@@ -35,8 +35,25 @@ async function saveImage(
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
-  const cursor = searchParams.get("cursor");
-  const take = Math.min(Number(searchParams.get("take") ?? 20), 50);
+  const cursorRaw = searchParams.get("cursor");
+  const takeRaw = searchParams.get("take");
+  // take/cursor 非数字时 Number() 得 NaN，直接进 Prisma 会抛错导致 500；
+  // 先校验，非法输入返回 400。take 缺省 20，上限 50。
+  let take = 20;
+  if (takeRaw !== null) {
+    const n = Number(takeRaw);
+    if (!Number.isFinite(n) || n < 1) {
+      return Response.json({ error: "无效 take 参数" }, { status: 400 });
+    }
+    take = Math.min(Math.floor(n), 50);
+  }
+  let cursor: number | null = null;
+  if (cursorRaw !== null) {
+    if (!/^\d+$/.test(cursorRaw)) {
+      return Response.json({ error: "无效 cursor 参数" }, { status: 400 });
+    }
+    cursor = Number(cursorRaw);
+  }
   const q = searchParams.get("q")?.trim() ?? "";
   const tag = searchParams.get("tag")?.trim() ?? "";
   const searching = q.length > 0 || tag.length > 0;
@@ -61,7 +78,7 @@ export async function GET(request: NextRequest) {
   const posts = await prisma.post.findMany({
     where: { ...where, pinned: false },
     take: take + 1,
-    ...(cursor ? { cursor: { id: Number(cursor) }, skip: 1 } : {}),
+    ...(cursor !== null ? { cursor: { id: cursor }, skip: 1 } : {}),
     orderBy: { createdAt: "desc" },
   });
   const hasMore = posts.length > take;
@@ -88,8 +105,8 @@ export async function GET(request: NextRequest) {
     take: 5,
   });
   return Response.json({
-    items: items.map((p) => ({ ...p, imageList: safeJsonArray(p.images), liked: likedSet.has(p.id) })),
-    pinned: pinned.map((p) => ({ ...p, imageList: safeJsonArray(p.images), liked: likedSet.has(p.id) })),
+    items: items.map((p) => toPublicPost(p, likedSet.has(p.id))),
+    pinned: pinned.map((p) => toPublicPost(p, likedSet.has(p.id))),
     announcements,
     nextCursor: hasMore ? items[items.length - 1].id : null,
   });
@@ -97,10 +114,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   await seedSensitiveWords();
-  const ip =
-    request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown";
+  const ip = getClientIp(request.headers);
   if (!allow(ip)) {
     return Response.json({ error: "操作过于频繁，请稍后再试" }, { status: 429 });
   }
