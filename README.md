@@ -105,3 +105,4 @@ android-app/  Expo App 端
 - 公开接口只返回展示所需字段，不返回 openId、visitorId 等内部标识
 - 公众号回调验签 `sha1(token, timestamp, nonce)`
 - 访客推送缺 visitorId 时不发送（fail-closed，不广播）；取消推送订阅须校验归属
+- 管理登录 `POST /api/admin/auth` 按 IP 限流：10 分钟最多 5 次尝试（失败也计次），超限返回 429；成功登录清零，失败额外延迟 500ms 拖慢枚举
