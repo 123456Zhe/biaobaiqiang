@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { toPublicPost } from "@/lib/post-dto";
 import { checkText } from "@/lib/dfa";
-import { moderateImage, moderateText, type AiVerdict } from "@/lib/ai-moderation";
+import { moderateImages, moderateText, type AiVerdict } from "@/lib/ai-moderation";
 import { allow, getClientIp } from "@/lib/ratelimit";
 import { seedSensitiveWords } from "@/lib/seed";
 import { isTag } from "@/lib/tags";
@@ -170,8 +170,13 @@ export async function POST(request: NextRequest) {
   const reasons: string[] = [];
   if (ai.reason && ai.verdict !== "approved") reasons.push(`文本：${ai.reason}`);
   let imgVerdict: "approved" | "uncertain" | "error" = "approved";
-  for (const s of saved) {
-    const r = await moderateImage(s.path, s.mime);
+  const imageResults = await moderateImages(
+    saved.map((s) => ({ path: s.path, mimeType: s.mime })),
+  );
+  for (let i = 0; i < imageResults.length; i++) {
+    const r = imageResults[i];
+    // 任一张已判定 rejected 时会提前返回，其余图片可能未被审核。
+    if (!r) continue;
     if (r.verdict === "rejected") {
       await Promise.all(saved.map((x) => fs.unlink(x.path).catch(() => {})));
       return Response.json(

@@ -8,6 +8,14 @@ const REASONING_EFFORT = process.env.OPENAI_REASONING_EFFORT ?? "";
 const TIMEOUT_MS = Number(process.env.OPENAI_MODERATION_TIMEOUT_MS ?? 15000) || 15000;
 const VISION_TIMEOUT_MS = Number(process.env.OPENAI_VISION_TIMEOUT_MS ?? 30000) || 30000;
 const RETRIES = Math.max(Number(process.env.OPENAI_MODERATION_RETRIES ?? 2) || 0, 0);
+// 图片审核默认不重试：单张超时/失败直接降级为 error 进人工复审，
+// 避免多图投稿把重试的退避时间累加进响应耗时。
+const IMAGE_RETRIES = Math.max(Number(process.env.OPENAI_VISION_RETRIES ?? 0) || 0, 0);
+// 图片审核并发上限，默认 3，避免一次投稿同时打满 vision 接口。
+const IMAGE_CONCURRENCY = Math.min(
+  Math.max(Number(process.env.OPENAI_IMAGE_CONCURRENCY ?? 3) || 3, 1),
+  9,
+);
 
 export type AiVerdict = "approved" | "rejected" | "uncertain" | "error";
 
@@ -152,15 +160,16 @@ async function callImageOnce(
 
 async function withRetry(
   fn: () => Promise<AiModerationResult>,
+  retries = RETRIES,
 ): Promise<AiModerationResult> {
   if (!API_KEY) {
     return { verdict: "error", reason: "未配置 AI 审核服务" };
   }
   let last: AiModerationResult = { verdict: "error", reason: "AI 审核请求失败" };
-  for (let attempt = 0; attempt <= RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= retries; attempt++) {
     last = await fn();
     if (last.verdict !== "error") return last;
-    if (attempt < RETRIES) {
+    if (attempt < retries) {
       await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
     }
   }
@@ -186,5 +195,40 @@ export async function moderateImage(
         reason: e instanceof Error ? `读取图片失败：${e.message}` : "读取图片失败",
       };
     }
-  });
+  }, IMAGE_RETRIES);
+}
+
+export interface ImageModerationInput {
+  path: string;
+  mimeType: string;
+}
+
+/**
+ * 并行审核一组图片，并发数上限为 IMAGE_CONCURRENCY。
+ * 多图投稿总耗时从逐张累加降为约等于最慢一批；任一张返回 rejected 后
+ * 不再启动排队中的图片，尽快把拒绝结果返回给调用方。
+ * 返回数组与入参一一对应，未启动的位置为 undefined。
+ */
+export async function moderateImages(
+  images: ReadonlyArray<ImageModerationInput>,
+): Promise<Array<AiModerationResult | undefined>> {
+  const results: Array<AiModerationResult | undefined> = new Array(images.length);
+  if (images.length === 0) return results;
+  let cursor = 0;
+  let rejected = false;
+  const worker = async () => {
+    while (!rejected) {
+      const index = cursor++;
+      if (index >= images.length) return;
+      const result = await moderateImage(images[index].path, images[index].mimeType);
+      results[index] = result;
+      if (result.verdict === "rejected") {
+        rejected = true;
+        return;
+      }
+    }
+  };
+  const workers = Math.min(IMAGE_CONCURRENCY, images.length);
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return results;
 }
